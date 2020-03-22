@@ -49,3 +49,18 @@ Train_step = {
     "SVM":1000,
     "BP":1000
 }
+
+Model_mode = ["first_train","keep_on","prediction"]
+
+Model_path1 = {
+    "linear_regression":"train_variable\\linear_regression\\",
+    "SVM":"train_variable\\SVM\\",
+    "BP":"train_variable\\BP\\"
+}
+
+Model_path2 = {
+    "linear_regression":"train_variable/linear_regression",
+    "SVM":"train_variable/SVM",
+    "BP":"train_variable/BP"
+}
+

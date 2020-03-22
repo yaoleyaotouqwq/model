@@ -64,9 +64,6 @@ def linear_regression_initial():
     enc = preprocessing.OneHotEncoder(sparse = False,n_values = [data_scope_len])
     y_onehot_data = enc.fit_transform(y_onehot_list)
 
-    # print(x_scaler_data)
-    # print(y_onehot_data)
-
     return x_scaler_data,y_onehot_data
 
 
