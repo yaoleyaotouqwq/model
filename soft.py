@@ -1,17 +1,7 @@
+import pickle
 
+import path_define
 
-class A :
-    def __init__(self):
-        pass
+a = 123
 
-    def a(self):
-        self.u = "233"
-
-    def b(self):
-        c = self.u
-        print(c)
-
-
-aaa = A()
-aaa.a()
-aaa.b()
+sql_word = "SELECT * FROM `score_data` where 序号 > '" + str(a) + "'"

@@ -1,7 +1,6 @@
-import pandas as pd
-import path_define as PreDefine
 import Data
 from sklearn import preprocessing
+from sklearn.preprocessing import minmax_scale
 
 # 打印隐藏元素
 # from numpy import *
@@ -29,28 +28,33 @@ def binary_find(data,left,right,values):
         return -1
 
 
-def linear_regression_initial():
-    """
-    对初始数据进行加工处理
-    :return:
-    """
-    # 不把第一行当属性
-    initial_data = pd.read_csv(PreDefine.initial_data_path,header=None).values
-
+def data_process(data):
     x_data = []
     y_data = []
 
-    # x 和 y分离,把评分等级换算成分数
-    for temp in initial_data:
-        x_data.append(list(temp[:8]) + list(temp[9:20]) + [Data.Score_dict[temp[20]]]+list(temp[21:]))
-        y_data.append(temp[8])
+    # 判断传进来是一纬还是二纬list
+    if isinstance(data[0], list):
+        # x 和 y分离,把评分等级换算成分数
+        for temp in data:
+            temp_x = list(temp[:8]) + list(temp[9:20]) + [Data.Score_dict[temp[20]]]+list(temp[21:])
+            temp_y = [temp[8]]
 
-    # 将数据缩至0-1之间
-    min_max_scaler = preprocessing.MinMaxScaler()
-    x_scaler_data = min_max_scaler.fit_transform(x_data)
+            x_data.append([0. if values is "" else float(values) for values in temp_x])
+            y_data.append([0. if values is "" else float(values) for values in temp_y][0])
 
-    # 分数one_hot准备
-    onehot_temp = [0 for temp in range(Data.Score_scope_len)]
+        # 将数据缩至0-1之间
+        x_scaler_data = minmax_scale(x_data, axis=0)
+    else:
+        temp_x = list(data[:8]) + list(data[9:20]) + [Data.Score_dict[data[20]]] + list(data[21:])
+        temp_y = [data[8]]
+
+        x_data.append([0. if temp is "" else float(temp) for temp in temp_x])
+        y_data = [0. if temp is "" else float(temp) for temp in temp_y]
+
+        # 将数据缩至0-1之间
+        x_scaler_data = minmax_scale(x_data,axis=1)
+
+    # 分数one_hot准备,在模型的softmax多分类的过程中，
     y_onehot_list = []
     data_scope = Data.Score_scope
     data_scope_len = Data.Score_scope_len
@@ -65,7 +69,3 @@ def linear_regression_initial():
     y_onehot_data = enc.fit_transform(y_onehot_list)
 
     return x_scaler_data,y_onehot_data
-
-
-if __name__ == '__main__':
-    linear_regression_initial()
