@@ -107,9 +107,12 @@ Message_tips = {
     "Not Change":"信息未做任何更改。",
     "Change Success":"信息已更改。",
     "Predict Own":"仅允许预测本用户成绩。",
-    "Train finish":"模型已训练完成。",
+    "Train Finish":"模型已训练完成。",
     "Data Missing":"数据库当前无数据可训练或数据不足以训练",
-    "Train Failed":"训练失败，数据库无新增数据或不足以训练，建议重新训练。"
+    "Train Failed":"训练失败，数据库无新增数据或不足以训练，建议重新训练。",
+    "Test Finish":"模型评估已完成。",
+    "Test Failed":"模型评估所需数据不足。"
+
 }
 
 Butten_Name = {

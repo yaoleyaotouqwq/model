@@ -20,7 +20,9 @@ class MainWindow(QMainWindow):
         # super() 调用父类(超类)的一个方法。
         super().__init__(*args , **kwargs)
 
-        self.model_LR = Model.logistics_regression()
+        self.model_LR = Model.LR()
+        self.model_SVM = Model.SVM()
+        self.model_DNN = Model.DNN()
 
         self.db = self.connect_Db()
         self.query = QSqlQuery()
@@ -200,16 +202,17 @@ class MainWindow(QMainWindow):
                                            Parameter.Score_data_num["variety"])])
                 id = self.query.value(0)
 
-            with open(Model_Parameter.id_path, 'wb') as f:
-                pickle.dump(int(id), f)
-
-            if len(datas) >= Model_Parameter.Batch_size['logistics_regression']:
+            # 暂定每个模型的batch_size都一样，只有训练集大于一个batch_size才能进行训练
+            if len(datas) >= Model_Parameter.Batch_size['LR']:
                 with open(Model_Parameter.id_path, 'wb') as f:
                     pickle.dump(int(id), f)
 
-                self.model_LR.logistics_regression_train(Model_Parameter.Model_mode[0], datas)
-                msgBox.warning(self, Parameter.Message_tips["Windows_title"],
-                               Parameter.Message_tips["Train finish"], QMessageBox.Ok)
+                self.model_LR.LR_train(Model_Parameter.Model_mode[0], datas)
+                self.model_SVM.SVM_train(Model_Parameter.Model_mode[0], datas)
+                self.model_DNN.DNN_train(Model_Parameter.Model_mode[0], datas)
+
+                msgBox.information(self, Parameter.Message_tips["Windows_title"],
+                               Parameter.Message_tips["Train Finish"], QMessageBox.Ok)
             else:
                 msgBox.warning(self, Parameter.Message_tips["Windows_title"],
                                Parameter.Message_tips["Data Missing"], QMessageBox.Ok)
@@ -226,6 +229,7 @@ class MainWindow(QMainWindow):
             f = open(Model_Parameter.id_path, 'rb')
             id = pickle.load(f)
 
+            # sql_word = "SELECT * FROM `score_data`"  #测试继续训练是否可用
             sql_word = "SELECT * FROM `score_data` where 序号 > '" + str(id) + "'"
             if self.query.exec_(sql_word):
                 while self.query.next():
@@ -234,13 +238,17 @@ class MainWindow(QMainWindow):
                                                     Parameter.Score_data_num["variety"])])
                     id = self.query.value(0)
 
-                if len(datas) >= Model_Parameter.Batch_size['logistics_regression']:
+                    # 暂定每个模型的batch_size都一样，只有新的训练集大于一个batch_size才能继续进行训练
+                if len(datas) >= Model_Parameter.Batch_size['LR']:
                     with open(Model_Parameter.id_path, 'wb') as f:
                         pickle.dump(int(id), f)
 
-                    self.model_LR.logistics_regression_train(Model_Parameter.Model_mode[1], datas)
-                    msgBox.warning(self, Parameter.Message_tips["Windows_title"],
-                                   Parameter.Message_tips["Train finish"], QMessageBox.Ok)
+                    self.model_LR.LR_train(Model_Parameter.Model_mode[1], datas)
+                    self.model_SVM.SVM_train(Model_Parameter.Model_mode[1], datas)
+                    self.model_DNN.DNN_train(Model_Parameter.Model_mode[1], datas)
+
+                    msgBox.information(self, Parameter.Message_tips["Windows_title"],
+                                   Parameter.Message_tips["Train Finish"], QMessageBox.Ok)
                 else:
                     msgBox.warning(self, Parameter.Message_tips["Windows_title"],
                                    Parameter.Message_tips["Train Failed"], QMessageBox.Ok)
@@ -255,7 +263,34 @@ class MainWindow(QMainWindow):
         elif self.identity == Parameter.identity["Student"]:
             pass
         else:
-            pass
+            msgBox = QMessageBox()
+            datas = []
+            id = 0
+            sql_word = "SELECT * FROM `score_data`"
+            self.query.exec_(sql_word)
+            while self.query.next():
+                datas.append([str(self.query.value(temp), encoding="utf-8")
+                              for temp in range(Parameter.Score_data_num["score_start"],
+                                                Parameter.Score_data_num["variety"])])
+                id = self.query.value(0)
+
+            # 暂定每个模型的batch_size都一样，只有训练集大于一个batch_size才能进行训练
+            if len(datas)//Model_Parameter.Test_K_num >= Model_Parameter.Batch_size['LR']:
+                with open(Model_Parameter.id_path, 'wb') as f:
+                    pickle.dump(int(id), f)
+
+                LR_ACC = self.model_LR.LR_test(datas)
+                SVM_ACC = self.model_SVM.SVM_test(datas)
+                DNN_ACC = self.model_DNN.DNN_test(datas)
+                print("LR model level is ", LR_ACC)
+                print("SVM model level is ", SVM_ACC)
+                print("DNN model level is ", DNN_ACC)
+
+                msgBox.information(self, Parameter.Message_tips["Windows_title"],
+                               Parameter.Message_tips["Test Finish"], QMessageBox.Ok)
+            else:
+                msgBox.warning(self, Parameter.Message_tips["Windows_title"],
+                               Parameter.Message_tips["Test Failed"], QMessageBox.Ok)
 
     def get_slot(self,user_id):
         self.user_id = user_id
@@ -478,7 +513,9 @@ class Predict(QDialog):
                      for temp in range(Parameter.Score_data_num["score_start"],
                                        Parameter.Score_data_num["variety"])]
 
-            self.Main_win.model_LR.logistics_regression_prediction(datas)
+            self.Main_win.model_LR.LR_prediction(datas)
+            self.Main_win.model_SVM.SVM_prediction(datas)
+            self.Main_win.model_DNN.DNN_prediction(datas)
             self.lineEdit_account.setText("")
         else:
             sql_word = "SELECT * FROM `score_data` where 学号 ='" + account + "'"
@@ -487,7 +524,9 @@ class Predict(QDialog):
                          for temp in range(Parameter.Score_data_num["score_start"],
                                            Parameter.Score_data_num["variety"])]
 
-                self.Main_win.model_LR.logistics_regression_prediction(datas)
+                self.Main_win.model_LR.LR_prediction(datas)
+                self.Main_win.model_SVM.SVM_prediction(datas)
+                self.Main_win.model_DNN.DNN_prediction(datas)
                 self.lineEdit_account.setText("")
             else:
                 msgBox.warning(self, Parameter.Message_tips["Windows_title"],
