@@ -1,10 +1,13 @@
+import os
 import pickle
 import sys
 
+from PyQt5.QtWebEngineWidgets import *
 from PyQt5.QtSql import QSqlDatabase, QSqlQuery, QSqlTableModel
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
-from qtpy import QtCore
+from pyecharts import Bar
+from qtpy import QtCore, QtGui
 
 import GUI_Parameter as Parameter
 
@@ -34,6 +37,8 @@ class MainWindow(QMainWindow):
         self.infor = Information(self)
         # 预测界面
         self.predict = Predict(self)
+        # 数据可视化图表界面
+        self.echarts = Echarts(self)
         # 查找界面
         self.search_dialog = Search_dialog(self)
         # 登录界面，首先执行
@@ -89,6 +94,7 @@ class MainWindow(QMainWindow):
         self.table_model.setHeaderData(24, Qt.Horizontal, Parameter.Tablefield_Name[24])
         self.table_model.setHeaderData(25, Qt.Horizontal, Parameter.Tablefield_Name[25])
         self.table_model.setHeaderData(26, Qt.Horizontal, Parameter.Tablefield_Name[26])
+        self.table_model.setHeaderData(27, Qt.Horizontal, Parameter.Tablefield_Name[27])
 
     def mainwindow_layout(self):
         self.setWindowTitle(Parameter.Window_Name["Main"])
@@ -502,37 +508,133 @@ class Predict(QDialog):
 
         self.setLayout(self.verticalLayout)
 
-    def run_predict(self,account):
+    # 生成图表
+    def general_graph(self,data_list,account):
 
-        msgBox = QMessageBox()
-        sql_word = "SELECT * FROM `score_data` where 学号 ='" + account + "' and 卷面成绩 = ''"
-        # 账号密码信息判断,用exec执行sql，用next判断是否成功
-        if self.query.exec_(sql_word) and self.query.next():
+        # 先清空文件夹
+        if os.path.exists(Model_Parameter.Echarts_path):
+            for file in os.listdir(Model_Parameter.Echarts_path):
+                os.remove(os.path.join(os.getcwd(), Model_Parameter.Echarts_path + file))
 
-            datas = [str(self.query.value(temp), encoding="utf-8")
-                     for temp in range(Parameter.Score_data_num["score_start"],
-                                       Parameter.Score_data_num["variety"])]
+        # 先清空Echarts选择项
+        self.Main_win.echarts.listwidget.clear()
 
-            self.Main_win.model_LR.LR_prediction(datas)
-            self.Main_win.model_SVM.SVM_prediction(datas)
-            self.Main_win.model_DNN.DNN_prediction(datas)
-            self.lineEdit_account.setText("")
+        predict_data = []
+        truly_data = []
+
+        if len(data_list[0][0]) == 1:
+
+            # 建立柱形图
+            bar = Bar(Parameter.Visual_Graph["Bar_Name"], account)
+
+            # 第一重选择模型
+            for temp in data_list:
+                predict_data.append(temp[0][0])
+                truly_data.append(temp[1][0])
+
+            bar.add(Parameter.Visual_Graph["Value_type"][0], Parameter.Visual_Graph["Algorithm_Name"], predict_data,
+                    is_more_utils=True)
+            bar.add(Parameter.Visual_Graph["Value_type"][1], Parameter.Visual_Graph["Algorithm_Name"], truly_data,
+                    is_more_utils=True)
+
+            bar.render(Model_Parameter.Echarts_path + account + ".html")
+
+            #  在Echarts中建立item功能项
+            item = QListWidgetItem()
+            item.setText(account)
+            self.Main_win.echarts.listwidget.addItem(item)
+
+            # 展现数据图，仅一个item
+            self.Main_win.echarts.Print_Graph(account)
+
         else:
-            sql_word = "SELECT * FROM `score_data` where 学号 ='" + account + "'"
-            if self.query.exec_(sql_word) and self.query.next():
-                datas = [str(self.query.value(temp), encoding="utf-8")
-                         for temp in range(Parameter.Score_data_num["score_start"],
-                                           Parameter.Score_data_num["variety"])]
+            data_len = len(data_list[0][0])
 
-                self.Main_win.model_LR.LR_prediction(datas)
-                self.Main_win.model_SVM.SVM_prediction(datas)
-                self.Main_win.model_DNN.DNN_prediction(datas)
-                self.lineEdit_account.setText("")
+            # 第一重选择数据mark_point
+            for temp1 in range(data_len):
+
+                # 建立柱形图
+                bar = Bar(Parameter.Visual_Graph["Bar_Name"], account[temp1])
+
+                # 第二重选择模型
+                for temp2 in data_list:
+                    predict_data.append(temp2[0][temp1])
+                    truly_data.append(temp2[1][temp1])
+                print(predict_data)
+                print(truly_data)
+                bar.add(Parameter.Visual_Graph["Value_type"][0], Parameter.Visual_Graph["Algorithm_Name"], predict_data,
+                        is_more_utils=True)
+                bar.add(Parameter.Visual_Graph["Value_type"][1], Parameter.Visual_Graph["Algorithm_Name"], truly_data,
+                        is_more_utils=True)
+
+                bar.render(Model_Parameter.Echarts_path + account[temp1] + ".html")
+
+                # 在Echarts中建立item功能项
+                item = QListWidgetItem()
+                item.setText(account[temp1])
+                self.Main_win.echarts.listwidget.addItem(item)
+
+                # 清除数据重新利用list
+                predict_data.clear()
+                truly_data.clear()
+
+            # 展现数据图，可含多个item
+            self.Main_win.echarts.Print_Graph(account)
+
+    def run_predict(self,account):
+        msgBox = QMessageBox()
+        if isinstance(account, list):
+            datas = []
+            for temp in account:
+                sql_word = "SELECT * FROM `score_data` where 学号 ='" + temp + "' and 卷面成绩 = ''"
+                # 账号密码信息判断,用exec执行sql，用next判断是否成功
+                if self.query.exec_(sql_word) and self.query.next():
+                    datas.append([str(self.query.value(temp), encoding="utf-8")
+                         for temp in range(Parameter.Score_data_num["score_start"],
+                                           Parameter.Score_data_num["variety"])])
+                else:
+                    sql_word = "SELECT * FROM `score_data` where 学号 ='" + temp + "'"
+                    if self.query.exec_(sql_word) and self.query.next():
+                        datas.append([str(self.query.value(temp), encoding="utf-8")
+                                 for temp in range(Parameter.Score_data_num["score_start"],
+                                                   Parameter.Score_data_num["variety"])])
+                    else:
+                        msgBox.warning(self, Parameter.Message_tips["Windows_title"],
+                                       Parameter.Message_tips["Search Failed"], QMessageBox.Ok)
+                        self.lineEdit_account.setText("")
+                        self.lineEdit_account1.setText("")
+                        self.lineEdit_account2.setText("")
+                        self.lineEdit_account3.setText("")
+                        return False
+
+        else:
+            sql_word = "SELECT * FROM `score_data` where 学号 ='" + account + "' and 卷面成绩 = ''"
+            # 账号密码信息判断,用exec执行sql，用next判断是否成功
+            if self.query.exec_(sql_word) and self.query.next():
+                datas = ([str(self.query.value(temp), encoding="utf-8")
+                              for temp in range(Parameter.Score_data_num["score_start"],
+                                                Parameter.Score_data_num["variety"])])
             else:
-                msgBox.warning(self, Parameter.Message_tips["Windows_title"],
-                               Parameter.Message_tips["Search Failed"], QMessageBox.Ok)
-                self.lineEdit_account.setText("")
-                return False
+                sql_word = "SELECT * FROM `score_data` where 学号 ='" + account + "'"
+                if self.query.exec_(sql_word) and self.query.next():
+                    datas = [str(self.query.value(temp), encoding="utf-8")
+                                  for temp in range(Parameter.Score_data_num["score_start"],
+                                                    Parameter.Score_data_num["variety"])]
+                else:
+                    msgBox.warning(self, Parameter.Message_tips["Windows_title"],
+                                   Parameter.Message_tips["Search Failed"], QMessageBox.Ok)
+                    self.lineEdit_account.setText("")
+                    return False
+
+        LR_result = self.Main_win.model_LR.LR_prediction(datas)
+        SVM_result = self.Main_win.model_SVM.SVM_prediction(datas)
+        DNN_result = self.Main_win.model_DNN.DNN_prediction(datas)
+        self.lineEdit_account.setText("")
+        self.lineEdit_account1.setText("")
+        self.lineEdit_account2.setText("")
+        self.lineEdit_account3.setText("")
+        self.general_graph([LR_result,SVM_result,DNN_result],account)
+        self.Main_win.echarts.show()
 
         return True
 
@@ -543,12 +645,8 @@ class Predict(QDialog):
             account2 = self.lineEdit_account2.text()
             account3 = self.lineEdit_account3.text()
             if account1 and account2 and account3:
-                if self.run_predict(account1):
-                    if self.run_predict(account2):
-                        self.run_predict(account3)
-            else:
-                msgBox.warning(self, Parameter.Message_tips["Windows_title"],
-                               Parameter.Message_tips["Predict Own"], QMessageBox.Ok)
+                self.run_predict([account1,account2,account3])
+
         else:
             account = self.lineEdit_account.text()
             if account and account == self.Main_win.user_id:
@@ -888,6 +986,149 @@ class Login_dialog(QDialog):
 
         # 清空输入框
         self.clean_click()
+
+
+class Echarts(QDialog):
+    # *args是非关键字参数，用于元组，**kwargs是关键字参数 （字典）
+    def __init__(self,Main_win,*args, **kwargs):
+        # super() 调用父类(超类)的一个方法。
+        super().__init__(*args , **kwargs)
+        self.window_layout()
+        self.item_layout()
+
+    def window_layout(self):
+        self.setWindowTitle(Parameter.Window_Name["Echarts"])
+        self.resize(Parameter.Window_Size["Width"]["Echarts"], Parameter.Window_Size["Height"]["Echarts"])
+        # 可拖拽大小
+        self.setSizeGripEnabled(True)
+        # 把窗口的问号按钮去掉
+        self.setWindowFlags(Qt.WindowCloseButtonHint)
+
+    def item_layout(self):
+
+        # 创建基本控件基类
+        self.frame = QFrame(self)
+        # 绘制矩形面板
+        self.frame.setFrameShape(QFrame.StyledPanel)
+        # 3D凸起线
+        self.frame.setFrameShadow(QFrame.Raised)
+
+        # 建立水平布局，填充主窗口
+        self.level_Layout = QHBoxLayout(self)
+        # 设置左侧、顶部、右侧和底部边距
+        self.level_Layout.setContentsMargins(Parameter.Visual_Graph["ContentsMargins"][0],
+                                             Parameter.Visual_Graph["ContentsMargins"][1],
+                                             Parameter.Visual_Graph["ContentsMargins"][2],
+                                             Parameter.Visual_Graph["ContentsMargins"][3])
+        # 各个控件之间的上下间距
+        self.level_Layout.setSpacing(0)
+
+        # 网格布局管理器
+        self.gridLayout = QGridLayout(self.frame)
+
+        # 多页面切换
+        self.stackedWidget = QStackedWidget(self.frame)
+        # 围绕内容画框
+        self.stackedWidget.setFrameShape(QFrame.Box)
+
+        # 分别设置行，列，占用行数，占用列数
+        self.gridLayout.addWidget(self.stackedWidget, Parameter.Visual_Graph["StackedWidget"][0],
+                                  Parameter.Visual_Graph["StackedWidget"][1],
+                                  Parameter.Visual_Graph["StackedWidget"][2],
+                                  Parameter.Visual_Graph["StackedWidget"][3])
+
+        # 加载并显示多个列表项
+        self.listwidget = QListWidget(self.frame)
+        self.listwidget.setMaximumSize(QSize(Parameter.Visual_Graph["Listwidget_size"]["Width"],
+                                             Parameter.Visual_Graph["Listwidget_size"]["Height"]))
+
+        # 分别设置行，列，占用行数，占用列数
+        self.gridLayout.addWidget(self.listwidget, Parameter.Visual_Graph["Listwidget"][0],
+                                  Parameter.Visual_Graph["Listwidget"][1],
+                                  Parameter.Visual_Graph["Listwidget"][2],
+                                  Parameter.Visual_Graph["Listwidget"][3])
+
+        self.line = QFrame(self.frame)
+        # 无框架垂直线作为分隔符
+        self.line.setFrameShape(QFrame.VLine)
+        # 3D凹陷线
+        self.line.setFrameShadow(QFrame.Sunken)
+        self.line.setObjectName("line")
+        # 分别设置行，列，占用行数，占用列数
+        self.gridLayout.addWidget(self.line, Parameter.Visual_Graph["Line"][0],
+                                  Parameter.Visual_Graph["Line"][1],
+                                  Parameter.Visual_Graph["Line"][2],
+                                  Parameter.Visual_Graph["Line"][3])
+
+        # 左侧功能列表的标题
+        self.label_left = QLabel(self.frame)
+        # 右侧功能列表的标题
+        self.label_right = QLabel(self.frame)
+
+        # 建立文字属性控件
+        font = QtGui.QFont()
+        # 文字大小
+        font.setPointSize(Parameter.Visual_Graph["Word"]["Size"])
+        # 设置粗体
+        font.setBold(Parameter.Visual_Graph["Word"]["Bold"])
+        # 禁用斜体
+        font.setItalic(Parameter.Visual_Graph["Word"]["Italic"])
+        font.setWeight(Parameter.Visual_Graph["Word"]["Weight"])
+
+        # 设置好的文字格式添加到控件中
+        self.label_left.setFont(font)
+        self.label_right.setFont(font)
+
+        # 分别设置行，列，占用行数，占用列数
+        self.gridLayout.addWidget(self.label_left, Parameter.Visual_Graph["Label_left"][0],
+                                  Parameter.Visual_Graph["Label_left"][1],
+                                  Parameter.Visual_Graph["Label_left"][2],
+                                  Parameter.Visual_Graph["Label_left"][3], QtCore.Qt.AlignHCenter)
+        self.gridLayout.addWidget(self.label_right, Parameter.Visual_Graph["Label_right"][0],
+                                  Parameter.Visual_Graph["Label_right"][1],
+                                  Parameter.Visual_Graph["Label_right"][2],
+                                  Parameter.Visual_Graph["Label_right"][3], QtCore.Qt.AlignHCenter)
+
+        # 基类布局放入水平布局
+        self.level_Layout.addWidget(self.frame)
+
+        # 设置功能区域和图形区域的标题
+        self.label_left.setText(Parameter.Visual_Graph["Graph_Name"][0])
+        self.label_right.setText(Parameter.Visual_Graph["Graph_Name"][1])
+
+        # 网格布局居中显示
+        self.setLayout(self.gridLayout)
+
+    def Print_Graph(self,account):
+
+        # 用来收集和删除Widget
+        self.Widget_list = []
+        # 变为集合
+        if not isinstance(account,list):
+            account = [account]
+
+        for item in account:
+            page = QWidget()
+            level_layout = QHBoxLayout(page)
+            frame = QFrame(page)
+            frame.setFrameShape(QFrame.StyledPanel)
+            frame.setFrameShadow(QFrame.Raised)
+            level_layout.addWidget(frame)
+
+            # 每添加一个就记录，关闭窗口后全部删除
+            self.stackedWidget.addWidget(page)
+
+            browser = QWebEngineView()
+            browser.load(QUrl("file:///" +r"/".join(os.getcwd().split("\\"))+"/"+Model_Parameter.Echarts_path+item+".html"))
+            verticalLayout = QHBoxLayout(frame)
+            verticalLayout.addWidget(browser)
+
+        self.listwidget.currentRowChanged.connect(self.stackedWidget.setCurrentIndex)
+
+    def closeEvent(self, *args, **kwargs):
+        # 关闭窗口后清空所有功能项
+        for widget_temp in self.Widget_list:
+            self.stackedWidget.removeWidget(widget_temp)
 
 
 if __name__ == "__main__":

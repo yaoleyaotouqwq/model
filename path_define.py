@@ -81,9 +81,11 @@ Model_path2 = {
 }
 
 tensorBoard_path = {
-    "LR":"tensorBoard_path/LR/",
+    "LR":"tensorBoard_path/LR",
     "SVM":"tensorBoard_path/SVM",
     "DNN":"tensorBoard_path/DNN",
 }
+
+Echarts_path = "Echarts/"
 
 id_path = "data_id"

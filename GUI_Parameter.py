@@ -8,6 +8,7 @@ Db = {
     "Password":"123456"
 }
 
+# 划定有效的数据区间
 Score_data_num = {
     "score_start":3,
     "variety":28
@@ -24,6 +25,7 @@ Window_Name = {
     "Login":"登录",
     "Search":"查找",
     "Predict":"预测",
+    "Echarts":"数据图表",
     "Infor":"个人信息与修改",
     "Main":"学生成绩预测系统"
 }
@@ -36,6 +38,7 @@ Window_Size = {
         "Infor":600,
         "Predict":400,
         "Search":300,
+        "Echarts":1100,
         "Main":1200
     },
     "Height":{
@@ -44,6 +47,7 @@ Window_Size = {
         "Infor":700,
         "Predict":400,
         "Search":300,
+        "Echarts":700,
         "Main":800
     }
 }
@@ -135,7 +139,45 @@ Search_Name = "学号"
 TableView_Name = "分数表"
 
 Tablefield_Name = ["序号" , "学号" ,  "考场座位号",
-                   "考题一", "考题二", "考题三", "考题四", "考题五", "考题六", "考题七" ,"考题八","卷面成绩"
+                   "考题一", "考题二", "考题三", "考题四", "考题五", "考题六", "考题七" ,"考题八","卷面成绩",
                    "SPOC单元测验1" , "SPOC单元测验2","SPOC单元测验3","SPOC单元测验4","SPOC单元测验5","SPOC单元测验6","SPOC单元测验7","SPOC单元测验8","SPOC测验总成绩","SPOC讨论","SPOC考试",
                     "课堂测试1","课堂测试2","课堂测试3","课堂测试4","课堂测试5"]
 
+
+Visual_Graph = {
+    "Graph_Name":["学号","数据图"],
+    "Columns_Name":["算法"],
+    "Algorithm_Name":["LR","SVM","DNN"],
+    "Bar_Name":["成绩预测情况"],
+    "Value_type":["预测分数","真实分数"],
+    # 行，列，占用行数，占用列数(左下角)
+    "Listwidget":[1,0,1,1],
+    # 行，列，占用行数，占用列数(右下角)
+    "StackedWidget":[1,2,1,1],
+    # 行，列，占用行数，占用列数(中间)
+    "Line":[1,1,1,1],
+    # 行，列，占用行数，占用列数(左上角)
+    "Label_left":[0, 0, 1, 1],
+    # 行，列，占用行数，占用列数(右上角)
+    "Label_right": [0, 2, 1, 1],
+    # 左侧、顶部、右侧和底部边距
+    "ContentsMargins":[0,0,0,0],
+    "Listwidget_size":{
+        "Width":200,
+        "Height":5000
+    },
+    # 字体格式
+    "Word":{
+        "Size":16,
+        # 粗体
+        "Bold":True,
+        # 斜体
+        "Italic":False,
+        # 文字粗细
+        "Weight":75
+    },
+    # 边框线条大小
+    "LineWidth":1,
+    # 控件的上下间距
+    "Spacing":0
+}

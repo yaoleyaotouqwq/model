@@ -108,6 +108,9 @@ class LR:
         return acc_score/PreDefine.Test_K_num
 
     def LR_prediction(self,score_data):
+        # 记录预测结果
+        result = []
+        truly = []
         # 模型预测
         # 加载训练的模型
         with tf.Session(graph=self.Graph) as self.sess:
@@ -126,12 +129,12 @@ class LR:
                     self.Y: [y_data[i]]
                 }
 
-                print("LR prediction is {0} , the truely result is {1}".format(
-                    np.argmax(self.sess.run(self.Result, feed_dict=feed)), np.argmax(y_data[i])))
-                # 此处待添加可视化展示预测结果
+                result.append(np.argmax(self.sess.run(self.Result, feed_dict=feed)))
+                truly.append(np.argmax(y_data[i]))
+
+        return [result,truly]
 
     def LR_train(self,model_mode,score_data):
-
         with tf.Session(graph=self.Graph) as self.sess:
             tf.global_variables_initializer().run()
 
@@ -293,8 +296,10 @@ class SVM:
         return acc_score / PreDefine.Test_K_num
 
     def SVM_prediction(self,score_data):
-        # 模型预测
 
+        result = []
+        truly = []
+        # 模型预测
         with tf.Session(graph=self.Graph) as self.sess:
             tf.global_variables_initializer().run()
 
@@ -311,9 +316,10 @@ class SVM:
                     self.Y: [y_data[i]]
                 }
 
-                print("SVM prediction is {0} , the truely result is {1}".format(
-                    np.argmax(self.sess.run(self.linear_model, feed_dict=feed)), np.argmax(y_data[i])))
-                # 此处待添加可视化展示预测结果
+                result.append(np.argmax(self.sess.run(self.linear_model, feed_dict=feed)))
+                truly.append(np.argmax(y_data[i]))
+
+        return [result, truly]
 
     def SVM_train(self,model_mode,score_data):
 
@@ -474,6 +480,10 @@ class DNN:
         return acc_score / PreDefine.Test_K_num
 
     def DNN_prediction(self,score_data):
+
+        result = []
+        truly = []
+
         # 模型预测
         # 加载训练的模型
         with tf.Session(graph=self.Graph) as self.sess:
@@ -492,9 +502,10 @@ class DNN:
                     self.Y: [y_data[i]]
                 }
 
-                print("DNN prediction is {0} , the truely result is {1}".format(
-                    np.argmax(self.sess.run(self.Layer5, feed_dict=feed)), np.argmax(y_data[i])))
-                # 此处待添加可视化展示预测结果
+                result.append(np.argmax(self.sess.run(self.Layer5, feed_dict=feed)))
+                truly.append(np.argmax(y_data[i]))
+
+        return [result, truly]
 
     def DNN_train(self,model_mode,score_data):
 
