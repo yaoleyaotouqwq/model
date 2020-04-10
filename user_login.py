@@ -6,13 +6,14 @@ from PyQt5.QtWebEngineWidgets import *
 from PyQt5.QtSql import QSqlDatabase, QSqlQuery, QSqlTableModel
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
-from pyecharts import Bar
+from pyecharts import Bar, Pie, Line, Radar
 from qtpy import QtCore, QtGui
 
 import GUI_Parameter as Parameter
 
 import path_define as Model_Parameter
 
+import Data as Data_change
 import Model
 
 
@@ -62,7 +63,9 @@ class MainWindow(QMainWindow):
 
         return db
 
+    # 关闭程序后
     def closeEvent(self, *args, **kwargs):
+        # 断开数据库连接
         self.db.close()
 
     def initialize_table(self):
@@ -127,6 +130,8 @@ class MainWindow(QMainWindow):
         self.table_view.setWindowTitle(Parameter.TableView_Name)
         # 隐藏列头
         self.table_view.verticalHeader().hide()
+        # 监听鼠标点击事件
+        self.table_view.doubleClicked.connect(self.doubleClicked)
 
         # 将两个局部分割布局为垂直布局
         self.left_splitter.setOrientation(Qt.Vertical)
@@ -177,7 +182,42 @@ class MainWindow(QMainWindow):
         # 显示所有数据or展示数据图or评估模型
         self.button4.clicked.connect(self.func3)
 
+    def doubleClicked(self):
+
+        # 教师专用功能
+        if self.identity == Parameter.identity["Teacher"]:
+            # 双击数据行获取该行账号信息
+            index = self.table_view.currentIndex()
+            # 需要预测查询窗口或图表展示窗口打开才能使用,同时禁用数据直接修改的功能
+            if index.isValid() and (self.predict.isVisible() or self.echarts.isVisible()):
+                self.table_view.setEditTriggers(QAbstractItemView.NoEditTriggers)
+                record = self.table_model.record(index.row())
+                account_string = str(record.value(Parameter.TableView_account_index), encoding="utf-8")
+
+                # 不需要重复生成预测图
+                if os.path.exists(Model_Parameter.Echarts_path):
+                    for file in os.listdir(Model_Parameter.Echarts_path):
+                        if file == account_string + ".html":
+                            return
+
+                self.predict.run_predict(str(record.value(Parameter.TableView_account_index), encoding="utf-8"))
+
+                # 弹出图表窗口并关闭预测查询窗口
+                if self.predict.isVisible():
+                    self.predict.lineEdit_account.setText("")
+                    self.predict.setVisible(False)
+                    # 设置顶层显示，方便用户操作
+                    self.echarts.setWindowFlag(QtCore.Qt.WindowStaysOnTopHint)
+                    self.echarts.show()
+            else:
+                self.table_view.setEditTriggers(QAbstractItemView.DoubleClicked)
+
     def information(self):
+        # 禁用所有其他按钮保证系统稳定性
+        self.button2.setEnabled(False)
+        self.button3.setEnabled(False)
+        self.button4.setEnabled(False)
+
         self.infor.account_text.setText(Parameter.Text_label["Infor"]["account"] + self.user_id)
         self.infor.identity_text.setText(Parameter.Text_label["Infor"]["identity"] + self.identity)
         self.infor.lineEdit_name.setText(self.name)
@@ -185,18 +225,28 @@ class MainWindow(QMainWindow):
 
     def func1(self):
         if self.identity == Parameter.identity["Teacher"]:
-            self.predict.verticalLayout.addLayout(self.predict.level_Layout2)
-            self.predict.verticalLayout.addLayout(self.predict.level_Layout3)
-            self.predict.verticalLayout.addLayout(self.predict.level_Layout4)
+            # 禁用其他按钮保证系统稳定性
+            self.button1.setEnabled(False)
+            self.button2.setEnabled(False)
+            self.predict.verticalLayout.addLayout(self.predict.level_Layout1)
             self.predict.verticalLayout.addLayout(self.predict.level_Layout5)
             self.predict.show()
 
         elif self.identity == Parameter.identity["Student"]:
+            # 禁用其他按钮保证系统稳定性
+            self.button1.setEnabled(False)
+            self.button2.setEnabled(False)
+            self.button4.setEnabled(False)
             self.predict.verticalLayout.addLayout(self.predict.level_Layout1)
             self.predict.verticalLayout.addLayout(self.predict.level_Layout5)
             self.predict.lineEdit_account.setText(self.user_id)
             self.predict.show()
         else:
+            # 禁用其他按钮保证系统稳定性
+            self.button1.setEnabled(False)
+            self.button2.setEnabled(False)
+            self.button3.setEnabled(False)
+            self.button4.setEnabled(False)
             msgBox = QMessageBox()
             datas = []
             id = 0
@@ -223,13 +273,30 @@ class MainWindow(QMainWindow):
                 msgBox.warning(self, Parameter.Message_tips["Windows_title"],
                                Parameter.Message_tips["Data Missing"], QMessageBox.Ok)
 
+            # 恢复所有其他按钮
+            if not self.button1.isEnabled():
+                self.button1.setEnabled(True)
+            if not self.button2.isEnabled():
+                self.button2.setEnabled(True)
+            if not self.button3.isEnabled():
+                self.button3.setEnabled(True)
+            if not self.button4.isEnabled():
+                self.button4.setEnabled(True)
+
     def func2(self):
+
         if self.identity == Parameter.identity["Teacher"]:
             self.search_dialog.show()
         elif self.identity == Parameter.identity["Student"]:
             self.search_dialog.lineEdit_account.setText(self.user_id)
             self.search_dialog.show()
         else:
+            # 禁用所有其他按钮保证系统稳定性
+            self.button1.setEnabled(False)
+            self.button2.setEnabled(False)
+            self.button3.setEnabled(False)
+            self.button4.setEnabled(False)
+
             msgBox = QMessageBox()
             datas = []
             f = open(Model_Parameter.id_path, 'rb')
@@ -262,13 +329,39 @@ class MainWindow(QMainWindow):
                 msgBox.warning(self, Parameter.Message_tips["Windows_title"],
                                Parameter.Message_tips["Train Failed"], QMessageBox.Ok)
 
+            # 恢复所有其他按钮
+            if not self.button1.isEnabled():
+                self.button1.setEnabled(True)
+            if not self.button2.isEnabled():
+                self.button2.setEnabled(True)
+            if not self.button3.isEnabled():
+                self.button3.setEnabled(True)
+            if not self.button4.isEnabled():
+                self.button4.setEnabled(True)
+
     def func3(self):
         if self.identity == Parameter.identity["Teacher"]:
             self.table_model.setTable('score_data')
             self.table_model.select()
         elif self.identity == Parameter.identity["Student"]:
-            pass
+
+            # 禁用所有其他按钮保证系统稳定性
+            self.button1.setEnabled(False)
+            self.button2.setEnabled(False)
+            self.button4.setEnabled(False)
+
+            # 设置功能区域和图形区域的标题
+            self.echarts.label_left.setText(Parameter.Visual_Graph["Graph_Name"][2])
+            self.echarts.label_right.setText(Parameter.Visual_Graph["Graph_Name"][1])
+            self.echarts.calculate_graph()
+            self.echarts.show()
         else:
+            # 禁用所有其他按钮保证系统稳定性
+            self.button1.setEnabled(False)
+            self.button2.setEnabled(False)
+            self.button3.setEnabled(False)
+            self.button4.setEnabled(False)
+
             msgBox = QMessageBox()
             datas = []
             id = 0
@@ -297,6 +390,16 @@ class MainWindow(QMainWindow):
             else:
                 msgBox.warning(self, Parameter.Message_tips["Windows_title"],
                                Parameter.Message_tips["Test Failed"], QMessageBox.Ok)
+
+            # 恢复所有其他按钮
+            if not self.button1.isEnabled():
+                self.button1.setEnabled(True)
+            if not self.button2.isEnabled():
+                self.button2.setEnabled(True)
+            if not self.button3.isEnabled():
+                self.button3.setEnabled(True)
+            if not self.button4.isEnabled():
+                self.button4.setEnabled(True)
 
     def get_slot(self,user_id):
         self.user_id = user_id
@@ -423,6 +526,16 @@ class Information(QDialog):
         self.lineEdit_name.setText(self.Main_win.name)
         self.setVisible(False)
 
+    def setButtonEnable(self):
+        # 恢复其他按钮使用
+
+        if not self.Main_win.button2.isEnabled():
+            self.Main_win.button2.setEnabled(True)
+        if not self.Main_win.button3.isEnabled():
+            self.Main_win.button3.setEnabled(True)
+        if not self.Main_win.button4.isEnabled():
+            self.Main_win.button4.setEnabled(True)
+
     def change_click(self):
         msgBox = QMessageBox()
 
@@ -435,9 +548,14 @@ class Information(QDialog):
                            Parameter.Message_tips["Change Success"], QMessageBox.Ok)
 
         self.reset_and_quit()
+        self.setButtonEnable()
 
     def cancel_click(self):
         self.reset_and_quit()
+        self.setButtonEnable()
+
+    def closeEvent(self, *args, **kwargs):
+        self.setButtonEnable()
 
 
 class Predict(QDialog):
@@ -463,26 +581,14 @@ class Predict(QDialog):
         self.verticalLayout = QVBoxLayout()
         # 创建水平布局
         self.level_Layout1 = QHBoxLayout()
-        self.level_Layout2 = QHBoxLayout()
-        self.level_Layout3 = QHBoxLayout()
-        self.level_Layout4 = QHBoxLayout()
         self.level_Layout5 = QHBoxLayout()
 
         # 单行文本
         self.account_text = QLabel(Parameter.Text_label["Predict"]["account"])
-        self.account_text1 = QLabel(Parameter.Text_label["Predict"]["account1"])
-        self.account_text2 = QLabel(Parameter.Text_label["Predict"]["account2"])
-        self.account_text3 = QLabel(Parameter.Text_label["Predict"]["account3"])
 
         # 单行输入框
         self.lineEdit_account = QLineEdit()
-        self.lineEdit_account1 = QLineEdit()
-        self.lineEdit_account2 = QLineEdit()
-        self.lineEdit_account3 = QLineEdit()
         self.lineEdit_account.setPlaceholderText(Parameter.Text_tips['Predict']["account"])
-        self.lineEdit_account1.setPlaceholderText(Parameter.Text_tips['Predict']["account"])
-        self.lineEdit_account2.setPlaceholderText(Parameter.Text_tips['Predict']["account"])
-        self.lineEdit_account3.setPlaceholderText(Parameter.Text_tips['Predict']["account"])
 
         # 按钮框
         self.predict_butten = QPushButton()
@@ -493,12 +599,6 @@ class Predict(QDialog):
         # 分别加入水平布局
         self.level_Layout1.addWidget(self.account_text)
         self.level_Layout1.addWidget(self.lineEdit_account)
-        self.level_Layout2.addWidget(self.account_text1)
-        self.level_Layout2.addWidget(self.lineEdit_account1)
-        self.level_Layout3.addWidget(self.account_text2)
-        self.level_Layout3.addWidget(self.lineEdit_account2)
-        self.level_Layout4.addWidget(self.account_text3)
-        self.level_Layout4.addWidget(self.lineEdit_account3)
         self.level_Layout5.addWidget(self.predict_butten)
         self.level_Layout5.addWidget(self.cancel_butten)
 
@@ -511,13 +611,21 @@ class Predict(QDialog):
     # 生成图表
     def general_graph(self,data_list,account):
 
-        # 先清空文件夹
-        if os.path.exists(Model_Parameter.Echarts_path):
-            for file in os.listdir(Model_Parameter.Echarts_path):
-                os.remove(os.path.join(os.getcwd(), Model_Parameter.Echarts_path + file))
+        # 更改Graph的Y轴显示,该回调无法从其他文件获取数据只能将常量定义在函数内
+        def change_data(data):
+            score_space = ["0-5", "5-10", "10-15", "15-20", "20-25", "25-30","30-35", "35-40",
+                     "40-45", "45-50", "50-55", "55-60","60-65", "65-70", "70-75",
+                     "75-80", "80-85", "85-90","90-95", "95-100"]
+            return score_space[data]
 
-        # 先清空Echarts选择项
-        self.Main_win.echarts.listwidget.clear()
+        if self.Main_win.identity == Parameter.identity["Student"]:
+            # 先清空文件夹
+            if os.path.exists(Model_Parameter.Echarts_path):
+                for file in os.listdir(Model_Parameter.Echarts_path):
+                    os.remove(os.path.join(os.getcwd(), Model_Parameter.Echarts_path + file))
+
+            # 先清空Echarts选择项
+            self.Main_win.echarts.listwidget.clear()
 
         predict_data = []
         truly_data = []
@@ -533,9 +641,17 @@ class Predict(QDialog):
                 truly_data.append(temp[1][0])
 
             bar.add(Parameter.Visual_Graph["Value_type"][0], Parameter.Visual_Graph["Algorithm_Name"], predict_data,
-                    is_more_utils=True)
+                    xaxis_name=Parameter.Visual_Graph["Columns_Name"][0],
+                    yaxis_name=Parameter.Visual_Graph["Columns_Name"][1],
+                    yaxis_name_gap=Parameter.Visual_Graph["Y_gap"],
+                    is_more_utils=True,
+                    yaxis_formatter = change_data)
             bar.add(Parameter.Visual_Graph["Value_type"][1], Parameter.Visual_Graph["Algorithm_Name"], truly_data,
-                    is_more_utils=True)
+                    xaxis_name=Parameter.Visual_Graph["Columns_Name"][0],
+                    yaxis_name=Parameter.Visual_Graph["Columns_Name"][1],
+                    yaxis_name_gap = Parameter.Visual_Graph["Y_gap"],
+                    is_more_utils=True,
+                    yaxis_formatter = change_data)
 
             bar.render(Model_Parameter.Echarts_path + account + ".html")
 
@@ -560,12 +676,19 @@ class Predict(QDialog):
                 for temp2 in data_list:
                     predict_data.append(temp2[0][temp1])
                     truly_data.append(temp2[1][temp1])
-                print(predict_data)
-                print(truly_data)
+
                 bar.add(Parameter.Visual_Graph["Value_type"][0], Parameter.Visual_Graph["Algorithm_Name"], predict_data,
-                        is_more_utils=True)
+                        xaxis_name=Parameter.Visual_Graph["Columns_Name"][0],
+                        yaxis_name=Parameter.Visual_Graph["Columns_Name"][1],
+                        yaxis_name_gap=Parameter.Visual_Graph["Y_gap"],
+                        is_more_utils=True,
+                        yaxis_formatter = change_data)
                 bar.add(Parameter.Visual_Graph["Value_type"][1], Parameter.Visual_Graph["Algorithm_Name"], truly_data,
-                        is_more_utils=True)
+                        xaxis_name=Parameter.Visual_Graph["Columns_Name"][0],
+                        yaxis_name=Parameter.Visual_Graph["Columns_Name"][1],
+                        yaxis_name_gap=Parameter.Visual_Graph["Y_gap"],
+                        is_more_utils=True,
+                        yaxis_formatter = change_data)
 
                 bar.render(Model_Parameter.Echarts_path + account[temp1] + ".html")
 
@@ -601,11 +724,7 @@ class Predict(QDialog):
                     else:
                         msgBox.warning(self, Parameter.Message_tips["Windows_title"],
                                        Parameter.Message_tips["Search Failed"], QMessageBox.Ok)
-                        self.lineEdit_account.setText("")
-                        self.lineEdit_account1.setText("")
-                        self.lineEdit_account2.setText("")
-                        self.lineEdit_account3.setText("")
-                        return False
+                        self.cancel_click()
 
         else:
             sql_word = "SELECT * FROM `score_data` where 学号 ='" + account + "' and 卷面成绩 = ''"
@@ -623,30 +742,30 @@ class Predict(QDialog):
                 else:
                     msgBox.warning(self, Parameter.Message_tips["Windows_title"],
                                    Parameter.Message_tips["Search Failed"], QMessageBox.Ok)
-                    self.lineEdit_account.setText("")
-                    return False
+                    self.cancel_click()
+                    # 不执行预测操作
+                    return
 
         LR_result = self.Main_win.model_LR.LR_prediction(datas)
         SVM_result = self.Main_win.model_SVM.SVM_prediction(datas)
         DNN_result = self.Main_win.model_DNN.DNN_prediction(datas)
-        self.lineEdit_account.setText("")
-        self.lineEdit_account1.setText("")
-        self.lineEdit_account2.setText("")
-        self.lineEdit_account3.setText("")
-        self.general_graph([LR_result,SVM_result,DNN_result],account)
-        self.Main_win.echarts.show()
 
-        return True
+        # 生成图表
+        self.general_graph([LR_result,SVM_result,DNN_result],account)
+
+        # 设置功能区域和图形区域的标题
+        self.Main_win.echarts.label_left.setText(Parameter.Visual_Graph["Graph_Name"][0])
+        self.Main_win.echarts.label_right.setText(Parameter.Visual_Graph["Graph_Name"][1])
+
+        if self.Main_win.identity == Parameter.identity["Student"]:
+            self.lineEdit_account.setText("")
+            self.Main_win.echarts.show()
 
     def predict_click(self):
         msgBox = QMessageBox()
         if self.Main_win.identity == Parameter.identity["Teacher"]:
-            account1 = self.lineEdit_account1.text()
-            account2 = self.lineEdit_account2.text()
-            account3 = self.lineEdit_account3.text()
-            if account1 and account2 and account3:
-                self.run_predict([account1,account2,account3])
-
+            account = self.lineEdit_account.text()
+            self.run_predict(account)
         else:
             account = self.lineEdit_account.text()
             if account and account == self.Main_win.user_id:
@@ -655,12 +774,31 @@ class Predict(QDialog):
                 msgBox.warning(self, Parameter.Message_tips["Windows_title"],
                                Parameter.Message_tips["Predict Own"], QMessageBox.Ok)
 
+                self.cancel_click()
+
         self.setVisible(False)
 
     def cancel_click(self):
         self.lineEdit_account.setText("")
         self.setVisible(False)
 
+        # 恢复所有其他按钮
+        if not self.Main_win.button1.isEnabled():
+            self.Main_win.button1.setEnabled(True)
+        if not self.Main_win.button2.isEnabled():
+            self.Main_win.button2.setEnabled(True)
+        if not self.Main_win.button4.isEnabled():
+            self.Main_win.button4.setEnabled(True)
+
+    def closeEvent(self, *args, **kwargs):
+
+        # 恢复所有其他按钮
+        if not self.Main_win.button1.isEnabled():
+            self.Main_win.button1.setEnabled(True)
+        if not self.Main_win.button2.isEnabled():
+            self.Main_win.button2.setEnabled(True)
+        if not self.Main_win.button4.isEnabled():
+            self.Main_win.button4.setEnabled(True)
 
 class Search_dialog(QDialog):
     def __init__(self,Main_win,*args, **kwargs):
@@ -993,6 +1131,11 @@ class Echarts(QDialog):
     def __init__(self,Main_win,*args, **kwargs):
         # super() 调用父类(超类)的一个方法。
         super().__init__(*args , **kwargs)
+        self.Main_win = Main_win
+        # 默认未进行计算图操作
+        self.is_Calculate = False
+        # 数据项集合
+        self.Calcul_data_lsit = []
         self.window_layout()
         self.item_layout()
 
@@ -1092,22 +1235,156 @@ class Echarts(QDialog):
         # 基类布局放入水平布局
         self.level_Layout.addWidget(self.frame)
 
-        # 设置功能区域和图形区域的标题
-        self.label_left.setText(Parameter.Visual_Graph["Graph_Name"][0])
-        self.label_right.setText(Parameter.Visual_Graph["Graph_Name"][1])
-
         # 网格布局居中显示
         self.setLayout(self.gridLayout)
 
-    def Print_Graph(self,account):
+    def calculate_graph(self):
+
+        # 先清空文件夹
+        if os.path.exists(Model_Parameter.Echarts_path):
+            for file in os.listdir(Model_Parameter.Echarts_path):
+                os.remove(os.path.join(os.getcwd(), Model_Parameter.Echarts_path + file))
+
+        # 先清空Echarts选择项
+        self.listwidget.clear()
+
+        # 已计算的图不必再次计算
+        if not self.is_Calculate:
+            self.is_Calculate = True
+
+            # 数据项
+            datas = []
+
+            # 实现饼图计算构建
+            self.Main_win.query.exec_(Parameter.Sql_word["Score_calculate"][0]+"'"+self.Main_win.user_id+"'")
+            while self.Main_win.query.next():
+                datas.append([ 0. if str(self.Main_win.query.value(temp), encoding="utf-8") == "" else
+                               float(str(self.Main_win.query.value(temp), encoding="utf-8"))
+                               for temp in range(Parameter.Score_data_num["Score_calculate"][0])])
+
+            self.Calcul_data_lsit.append(datas[0])
+            datas = []
+
+            # 实现折线图计算构建
+            # 先进行全库数据的收集
+            self.Main_win.query.exec_(Parameter.Sql_word["Score_calculate"][1])
+            while self.Main_win.query.next():
+                datas.append([0. if str(self.Main_win.query.value(temp), encoding="utf-8") == "" else
+                              float(str(self.Main_win.query.value(temp), encoding="utf-8"))
+                              for temp in range(Parameter.Score_data_num["Score_calculate"][1])])
+
+            max_data = []
+            min_data = []
+
+            for temp in range(len(datas[0])):
+                data_temp = sorted(datas, key=lambda a: a[temp])
+                max_data.append(data_temp[len(datas) - 1][temp])
+                min_data.append(data_temp[0][temp])
+
+            datas = []
+
+            # 接着进行本用户的数据定位
+            self.Main_win.query.exec_(Parameter.Sql_word["Score_calculate"][3] + "'" + self.Main_win.user_id + "'")
+            while self.Main_win.query.next():
+                datas.append([0. if str(self.Main_win.query.value(temp), encoding="utf-8") == "" else
+                              float(str(self.Main_win.query.value(temp), encoding="utf-8"))
+                              for temp in range(Parameter.Score_data_num["Score_calculate"][1])])
+
+            self.Calcul_data_lsit.append([datas[0],min_data,max_data])
+
+            datas = []
+
+            # 实现雷达图计算构建
+            self.Main_win.query.exec_(Parameter.Sql_word["Score_calculate"][2] + "'" + self.Main_win.user_id + "'")
+            while self.Main_win.query.next():
+                # 课堂成绩存在等级和分数的转换
+                for temp in range(Parameter.Score_data_num["Score_calculate"][2]):
+                    string_temp = str(self.Main_win.query.value(temp), encoding="utf-8")
+                    if string_temp == "":
+                        datas.append(0.)
+                    else:
+                        if temp == Data_change.Score_dict["index"]:
+                            datas.append(float(Data_change.Score_dict[string_temp]))
+                        else:
+                            datas.append(float(string_temp))
+
+            self.Calcul_data_lsit.append([datas])
+
+            # 保存饼图每块的名称
+            self.pie_item_name = []
+            for temp in range(Parameter.Visual_Graph["Func_data_name"][0][0],Parameter.Visual_Graph["Func_data_name"][0][1]):
+                self.pie_item_name.append(Parameter.Tablefield_Name[temp])
+
+            # 保存折线图坐标轴值的名称
+            self.line_item_name = []
+            for temp in range(Parameter.Visual_Graph["Func_data_name"][1][0],
+                              Parameter.Visual_Graph["Func_data_name"][1][1]):
+                self.line_item_name.append(Parameter.Tablefield_Name[temp])
+
+            # 保存雷达图各维度的名称
+            self.radar_item_name = []
+            for temp in range(Parameter.Visual_Graph["Func_data_name"][2][0],
+                              Parameter.Visual_Graph["Func_data_name"][2][1]):
+                self.radar_item_name.append(
+                    {
+                        "name":Parameter.Tablefield_Name[temp],
+                        "max":Parameter.Visual_Graph["Radar_space"][1],
+                        "min":Parameter.Visual_Graph["Radar_space"][0]
+                    }
+                )
+
+
+        # 构造饼图
+        pie = Pie(Parameter.Visual_Graph["Func_name"][0],self.Main_win.user_id)
+        pie.add(self.Main_win.user_id,self.pie_item_name,self.Calcul_data_lsit[0],
+                is_label_show=True,
+                is_more_utils=True
+        )
+        pie.render(path=Model_Parameter.Echarts_path + Parameter.Visual_Graph["Func_name"][0] + ".html")
+
+        # 构造折线图
+        line = Line(Parameter.Visual_Graph["Func_name"][1],self.Main_win.user_id)
+        line.add(Parameter.Visual_Graph["Line_name"][0], self.line_item_name, self.Calcul_data_lsit[1][0],
+                 xaxis_rotate=Parameter.Visual_Graph["Line_x_rotate"],
+                 is_label_show=True)
+        line.add(Parameter.Visual_Graph["Line_name"][1], self.line_item_name, self.Calcul_data_lsit[1][1],
+                 xaxis_rotate=Parameter.Visual_Graph["Line_x_rotate"],
+                 is_label_show=True)
+        line.add(Parameter.Visual_Graph["Line_name"][2], self.line_item_name, self.Calcul_data_lsit[1][2],
+                 xaxis_rotate=Parameter.Visual_Graph["Line_x_rotate"],
+                 is_label_show=True)
+        line.render(path=Model_Parameter.Echarts_path + Parameter.Visual_Graph["Func_name"][1] + ".html")
+
+        # 构造雷达图
+        radar = Radar(Parameter.Visual_Graph["Func_name"][1], self.Main_win.user_id)
+        radar.config(c_schema=self.radar_item_name)
+        radar.add(Parameter.Visual_Graph["Radar_name"], self.Calcul_data_lsit[2])
+
+        radar.render(path=Model_Parameter.Echarts_path + Parameter.Visual_Graph["Func_name"][2] + ".html")
+
+        #  在Echarts中建立item功能项
+        item = QListWidgetItem()
+        item.setText(Parameter.Visual_Graph["Student_func"][0])
+        self.listwidget.addItem(item)
+        item = QListWidgetItem()
+        item.setText(Parameter.Visual_Graph["Student_func"][1])
+        self.listwidget.addItem(item)
+        item = QListWidgetItem()
+        item.setText(Parameter.Visual_Graph["Student_func"][2])
+        self.listwidget.addItem(item)
+
+        # 展现数据图
+        self.Print_Graph([Parameter.Visual_Graph["Func_name"][0],Parameter.Visual_Graph["Func_name"][1],Parameter.Visual_Graph["Func_name"][2]])
+
+    def Print_Graph(self,func):
 
         # 用来收集和删除Widget
         self.Widget_list = []
         # 变为集合
-        if not isinstance(account,list):
-            account = [account]
+        if not isinstance(func,list):
+            func = [func]
 
-        for item in account:
+        for item in func:
             page = QWidget()
             level_layout = QHBoxLayout(page)
             frame = QFrame(page)
@@ -1117,6 +1394,7 @@ class Echarts(QDialog):
 
             # 每添加一个就记录，关闭窗口后全部删除
             self.stackedWidget.addWidget(page)
+            self.Widget_list.append(page)
 
             browser = QWebEngineView()
             browser.load(QUrl("file:///" +r"/".join(os.getcwd().split("\\"))+"/"+Model_Parameter.Echarts_path+item+".html"))
@@ -1126,12 +1404,36 @@ class Echarts(QDialog):
         self.listwidget.currentRowChanged.connect(self.stackedWidget.setCurrentIndex)
 
     def closeEvent(self, *args, **kwargs):
-        # 关闭窗口后清空所有功能项
+        # 关闭窗口后清空所有切换项
         for widget_temp in self.Widget_list:
             self.stackedWidget.removeWidget(widget_temp)
 
+        # 关闭窗口时清空选项
+        self.listwidget.clear()
+
+        # 关闭窗口时清空文件夹
+        if os.path.exists(Model_Parameter.Echarts_path):
+            for file in os.listdir(Model_Parameter.Echarts_path):
+                os.remove(os.path.join(os.getcwd(), Model_Parameter.Echarts_path + file))
+
+        # 恢复所有其他按钮
+        if not self.Main_win.button1.isEnabled():
+            self.Main_win.button1.setEnabled(True)
+        if not self.Main_win.button2.isEnabled():
+            self.Main_win.button2.setEnabled(True)
+        if not self.Main_win.button4.isEnabled():
+            self.Main_win.button4.setEnabled(True)
+
+def Clear_Echarts():
+    # # 程序有可能遭受非正常关闭，运行前清空先前生成的图表
+    if os.path.exists(Model_Parameter.Echarts_path):
+        for file in os.listdir(Model_Parameter.Echarts_path):
+            os.remove(os.path.join(os.getcwd(), Model_Parameter.Echarts_path + file))
+
 
 if __name__ == "__main__":
+
+    Clear_Echarts()
     # 运行主循环
     app = QApplication(sys.argv)
     main_window = MainWindow()

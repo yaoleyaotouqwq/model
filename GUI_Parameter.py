@@ -8,10 +8,19 @@ Db = {
     "Password":"123456"
 }
 
+Sql_word = {
+    "Score_calculate":["SELECT 考题一, 考题二, 考题三, 考题四, 考题五, 考题六, 考题七 ,考题八 FROM `score_data` where 学号=",
+                       "SELECT SPOC单元测验1, SPOC单元测验2, SPOC单元测验3, SPOC单元测验4, SPOC单元测验5,SPOC单元测验6, SPOC单元测验7,SPOC单元测验8 FROM `score_data`",
+                       "SELECT 课堂测试1, 课堂测试2, 课堂测试3, 课堂测试4, 课堂测试5 FROM `score_data` where 学号=",
+                       "SELECT SPOC单元测验1, SPOC单元测验2, SPOC单元测验3, SPOC单元测验4, SPOC单元测验5,SPOC单元测验6, SPOC单元测验7,SPOC单元测验8 FROM `score_data` where 学号=",
+                       ]
+}
+
 # 划定有效的数据区间
 Score_data_num = {
     "score_start":3,
-    "variety":28
+    "variety":28,
+    "Score_calculate":[8,8,5]
 }
 
 identity = {
@@ -74,9 +83,6 @@ Text_label = {
     },
     "Predict":{
         "account":"账号：",
-        "account1":"账号1：",
-        "account2":"账号2：",
-        "account3":"账号3：",
     }
 }
 
@@ -128,7 +134,7 @@ Butten_Name = {
     "Predict":"预测",
     "Information":"个人信息",
     "Find All":"显示所有学生成绩数据",
-    "Score Graph":"成绩柱状图展示",
+    "Score Graph":"成绩图表展示",
     "Retraining":"重新训练模型",
     "Keep On Train":"继续训练模型",
     "Assessment Model":"评估模型"
@@ -143,11 +149,19 @@ Tablefield_Name = ["序号" , "学号" ,  "考场座位号",
                    "SPOC单元测验1" , "SPOC单元测验2","SPOC单元测验3","SPOC单元测验4","SPOC单元测验5","SPOC单元测验6","SPOC单元测验7","SPOC单元测验8","SPOC测验总成绩","SPOC讨论","SPOC考试",
                     "课堂测试1","课堂测试2","课堂测试3","课堂测试4","课堂测试5"]
 
+TableView_account_index = 1
 
 Visual_Graph = {
-    "Graph_Name":["学号","数据图"],
-    "Columns_Name":["算法"],
+    "Graph_Name":["学号","数据图","图表选项"],
+    "Columns_Name":["算法","分数区间"],
     "Algorithm_Name":["LR","SVM","DNN"],
+    "Student_func":["考题得分占比","SPOC单元测试对比","课堂测试对比"],
+    "Func_name":["考题饼图","SPOC折线图","课堂测试雷达图"],
+    "Func_data_name":[(3,11),(12,20),(23,28)],
+    "Line_name":["本用户分数线","最低分数线","最高分数线"],
+    "Line_x_rotate":330,
+    "Radar_name":"课堂测试分数",
+    "Radar_space":[0,100],
     "Bar_Name":["成绩预测情况"],
     "Value_type":["预测分数","真实分数"],
     # 行，列，占用行数，占用列数(左下角)
@@ -179,5 +193,7 @@ Visual_Graph = {
     # 边框线条大小
     "LineWidth":1,
     # 控件的上下间距
-    "Spacing":0
+    "Spacing":0,
+    # Y轴名称距离
+    "Y_gap":50
 }
