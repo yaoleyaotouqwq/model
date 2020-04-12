@@ -1,10 +1,10 @@
 import tensorflow as tf
+import GUI_Parameter as Parameter
 import path_define as PreDefine
 import Data_process as data_process
 import Batches
 import os
 import numpy as np
-
 
 class LR:
     def __init__(self):
@@ -63,15 +63,16 @@ class LR:
                     acc = self.Acc.eval(feed_dict=feed)
                     print("step %d , Loss is %f , Acc is %f" % (step,loss,acc))
 
+            acc = self.Acc.eval(feed_dict={self.X:test_x,self.Y:test_y})
             print("LR model the number {0} test score is {1}".format(
-                test_data['times']+1,self.Acc.eval(feed_dict={self.X:test_x,self.Y:test_y})))
+                test_data['times']+1,acc))
 
-            # 记录每个模型的得分情况
-            new_score = acc - loss
+            # 记录每个模型评估准确率
+            new_score = acc
 
             if new_score >= low_score:
                 low_score = new_score
-                # 保存训练的模型
+                # 保存训练的模型，low_score用来保存最优模型
                 Saver = tf.train.Saver()
                 Saver.save(self.sess,PreDefine.Model_path2["LR"]+'/LR',global_step=step)
 
@@ -92,11 +93,16 @@ class LR:
         }
         # 区分第几折数据
         times =  0
-        # 设立一个最低分=ACC-LOSE,默认-100
-        low_score = 0 - 100
+        # 设立一个最低分,默认-100
+        low_score = -100
 
         # 评估算法的表现
         acc_score = 0
+
+        # 传递数据画图
+        times_list = []
+        new_score_list = []
+        average_score_list = []
 
         for temp in range(PreDefine.Test_K_num):
             Test_data["times"] = times
@@ -105,7 +111,10 @@ class LR:
             times+=1
             acc_score+=new_score
 
-        return acc_score/PreDefine.Test_K_num
+            times_list.append(str(times))
+            new_score_list.append(new_score*100)
+            average_score_list.append(acc_score/PreDefine.Test_K_num)
+            yield times_list,new_score_list,average_score_list
 
     def LR_prediction(self,score_data):
         # 记录预测结果
@@ -135,6 +144,12 @@ class LR:
         return [result,truly]
 
     def LR_train(self,model_mode,score_data):
+
+        # 保存训练结果
+        step_list = []
+        loss_list = []
+        acc_list = []
+
         with tf.Session(graph=self.Graph) as self.sess:
             tf.global_variables_initializer().run()
 
@@ -184,7 +199,17 @@ class LR:
                     batch_times+=1
 
                 if step % 20 == 0:
-                    print("step %d , Loss is %f , Acc is %f" % (step,loss,self.Acc.eval(feed_dict=feed)))
+                    acc = self.Acc.eval(feed_dict=feed)
+
+                    print("step %d , Loss is %f , Acc is %f" % (step,loss,acc))
+
+                if step % Parameter.Model_Refresh_num == 0:
+                    acc = self.Acc.eval(feed_dict=feed)
+                    step_list.append(str(step))
+                    loss_list.append(loss)
+                    acc_list.append(acc*100)
+
+                    yield step_list, loss_list, acc_list
 
             Saver.save(self.sess,PreDefine.Model_path2["LR"]+'/LR',global_step=step)
 
@@ -248,11 +273,12 @@ class SVM:
                     acc = self.Acc.eval(feed_dict=feed)
                     print("step %d , Loss is %f , Acc is %f" % (step, loss, acc))
 
+            acc = self.Acc.eval(feed_dict={self.X: test_x, self.Y: test_y})
             print("SVM model the number {0} test score is {1}".format(
-                test_data['times'] + 1, self.Acc.eval(feed_dict={self.X: test_x, self.Y: test_y})))
+                test_data['times'] + 1, acc))
 
-            # 记录每个模型的得分情况
-            new_score = acc - loss
+            # 记录每个模型评估准确率
+            new_score = acc
 
             if new_score >= low_score:
                 low_score = new_score
@@ -278,11 +304,16 @@ class SVM:
         }
         # 区分第几折数据
         times = 0
-        # 设立一个最低分=ACC-LOSE,默认-100
-        low_score = 0 - 100
+        # 设立一个最低分,默认-100
+        low_score = -100
 
         # 评估算法的表现
         acc_score = 0
+
+        # 传递数据画图
+        times_list = []
+        new_score_list = []
+        average_score_list = []
 
         for temp in range(PreDefine.Test_K_num):
             Test_data["times"] = times
@@ -292,8 +323,10 @@ class SVM:
             times += 1
             acc_score += new_score
 
-        print(acc_score / PreDefine.Test_K_num)
-        return acc_score / PreDefine.Test_K_num
+            times_list.append(str(times))
+            new_score_list.append(new_score*100)
+            average_score_list.append(acc_score / PreDefine.Test_K_num)
+            yield times_list, new_score_list, average_score_list
 
     def SVM_prediction(self,score_data):
 
@@ -322,6 +355,10 @@ class SVM:
         return [result, truly]
 
     def SVM_train(self,model_mode,score_data):
+
+        step_list = []
+        loss_list = []
+        acc_list = []
 
         with tf.Session(graph=self.Graph) as self.sess:
             tf.global_variables_initializer().run()
@@ -355,7 +392,17 @@ class SVM:
                     _, loss = self.sess.run([self.Train_op, self.Loss], feed_dict=feed)
 
                 if step % 20 == 0:
-                    print("step %d , Loss is %f , Acc is %f" % (step, loss, self.Acc.eval(feed_dict=feed)))
+                    acc = self.Acc.eval(feed_dict=feed)
+
+                    print("step %d , Loss is %f , Acc is %f" % (step,loss,acc))
+
+                if step % Parameter.Model_Refresh_num == 0:
+                    acc = self.Acc.eval(feed_dict=feed)
+                    step_list.append(str(step))
+                    loss_list.append(loss)
+                    acc_list.append(acc*100)
+
+                    yield step_list, loss_list, acc_list
 
             Saver.save(self.sess, PreDefine.Model_path2["SVM"] + '/SVM', global_step=step)
 
@@ -434,11 +481,12 @@ class DNN:
                     acc = self.Acc.eval(feed_dict=feed)
                     print("step %d , Loss is %f , Acc is %f" % (step, loss, acc))
 
+            acc = self.Acc.eval(feed_dict={self.X: test_x, self.Y: test_y})
             print("DNN model the number {0} test score is {1}".format(
-                test_data['times'] + 1, self.Acc.eval(feed_dict={self.X: test_x, self.Y: test_y})))
+                test_data['times'] + 1, acc))
 
-            # 记录每个模型的得分情况
-            new_score = acc - loss
+            # 记录每个模型评估准确率
+            new_score = acc
 
             if new_score >= low_score:
                 low_score = new_score
@@ -464,11 +512,16 @@ class DNN:
         }
         # 区分第几折数据
         times = 0
-        # 设立一个最低分=ACC-LOSE,默认-100
-        low_score = 0 - 100
+        # 设立一个最低分,默认-100
+        low_score = -100
 
         # 评估算法的表现
         acc_score = 0
+
+        # 传递数据画图
+        times_list = []
+        new_score_list = []
+        average_score_list = []
 
         for temp in range(PreDefine.Test_K_num):
             Test_data["times"] = times
@@ -477,7 +530,10 @@ class DNN:
             times += 1
             acc_score += new_score
 
-        return acc_score / PreDefine.Test_K_num
+            times_list.append(str(times))
+            new_score_list.append(new_score*100)
+            average_score_list.append(acc_score / PreDefine.Test_K_num)
+            yield times_list, new_score_list, average_score_list
 
     def DNN_prediction(self,score_data):
 
@@ -508,6 +564,10 @@ class DNN:
         return [result, truly]
 
     def DNN_train(self,model_mode,score_data):
+
+        step_list = []
+        loss_list = []
+        acc_list = []
 
         with tf.Session(graph=self.Graph) as self.sess:
             tf.global_variables_initializer().run()
@@ -543,7 +603,16 @@ class DNN:
                     batch_times += 1
 
                 if step % 20 == 0:
-                    print("step %d , Loss is %f , Acc is %f" % (step, loss, self.Acc.eval(feed_dict=feed)))
+                    acc = self.Acc.eval(feed_dict=feed)
+                    print("step %d , Loss is %f , Acc is %f" % (step, loss, acc))
+
+                if step % Parameter.Model_Refresh_num == 0:
+                    acc = self.Acc.eval(feed_dict=feed)
+                    step_list.append(str(step))
+                    loss_list.append(loss)
+                    acc_list.append(acc*100)
+
+                    yield step_list, loss_list, acc_list
 
             Saver.save(self.sess, PreDefine.Model_path2["DNN"] + '/DNN', global_step=step)
 

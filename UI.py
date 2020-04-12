@@ -6,7 +6,7 @@ from PyQt5.QtWebEngineWidgets import *
 from PyQt5.QtSql import QSqlDatabase, QSqlQuery, QSqlTableModel
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
-from pyecharts import Bar, Pie, Line, Radar
+from pyecharts import Bar, Pie, Line, Radar, Page
 from qtpy import QtCore, QtGui
 
 import GUI_Parameter as Parameter
@@ -24,9 +24,13 @@ class MainWindow(QMainWindow):
         # super() 调用父类(超类)的一个方法。
         super().__init__(*args , **kwargs)
 
+        # 三个模型
         self.model_LR = Model.LR()
         self.model_SVM = Model.SVM()
         self.model_DNN = Model.DNN()
+
+        # 建立线程来处理耗时操作
+        self.thread = Thread(self)
 
         self.db = self.connect_Db()
         self.query = QSqlQuery()
@@ -46,7 +50,14 @@ class MainWindow(QMainWindow):
         self.dialog = Login_dialog()
         self.dialog.show()
 
+        # 接受信号选择不同的客户端
         self.dialog.login_sendmsg.connect(self.get_slot)
+        # 接受信号进入切换Tips的html
+        self.thread.signal_model_tips.connect(self.Html_tips)
+        # 接受信号进入训练图模式
+        self.thread.signal_model_train.connect(self.Train_graph)
+        # 接受信号进入评估图模式
+        self.thread.signal_model_test.connect(self.Test_graph)
 
     def connect_Db(self):
         # 连接数据库
@@ -124,7 +135,7 @@ class MainWindow(QMainWindow):
         self.button3 = QPushButton()
         self.button4 = QPushButton()
 
-        # 表视图
+        # 表视图(仅学生和教师用户可用)
         self.table_view = QTableView()
         self.table_view.setModel(self.table_model)
         self.table_view.setWindowTitle(Parameter.TableView_Name)
@@ -132,6 +143,22 @@ class MainWindow(QMainWindow):
         self.table_view.verticalHeader().hide()
         # 监听鼠标点击事件
         self.table_view.doubleClicked.connect(self.doubleClicked)
+
+        # 模型运行结果页面(仅管理员可用)
+        # 创建基本控件基类
+        self.frame = QFrame(self)
+        # 绘制矩形面板
+        self.frame.setFrameShape(QFrame.StyledPanel)
+        # 3D凸起线
+        self.frame.setFrameShadow(QFrame.Raised)
+        # 可视化图形
+        self.graph = QWebEngineView()
+        self.right_splitter_graph = QSplitter(self.frame)
+        self.right_splitter_graph.addWidget(self.graph)
+        # 垂直布局
+        self.right_splitter_graph.setOrientation(Qt.Vertical)
+        # 变为不可拉伸
+        self.right_splitter_graph.setOpaqueResize(False)
 
         # 将两个局部分割布局为垂直布局
         self.left_splitter.setOrientation(Qt.Vertical)
@@ -158,15 +185,6 @@ class MainWindow(QMainWindow):
         self.right_splitter_button.addWidget(self.button3)
         self.right_splitter_button.addWidget(self.button4)
 
-        # 依次装入右布局
-        self.right_splitter.addWidget(self.right_splitter_text)
-        self.right_splitter.addWidget(self.table_view)
-        self.right_splitter.addWidget(self.right_splitter_button)
-
-        # 装入总布局
-        self.main_splitter.addWidget(self.left_splitter)
-        self.main_splitter.addWidget(self.right_splitter)
-
         # 中心放置
         self.setCentralWidget(self.main_splitter)
 
@@ -183,7 +201,6 @@ class MainWindow(QMainWindow):
         self.button4.clicked.connect(self.func3)
 
     def doubleClicked(self):
-
         # 教师专用功能
         if self.identity == Parameter.identity["Teacher"]:
             # 双击数据行获取该行账号信息
@@ -242,11 +259,8 @@ class MainWindow(QMainWindow):
             self.predict.lineEdit_account.setText(self.user_id)
             self.predict.show()
         else:
-            # 禁用其他按钮保证系统稳定性
-            self.button1.setEnabled(False)
-            self.button2.setEnabled(False)
-            self.button3.setEnabled(False)
-            self.button4.setEnabled(False)
+            # 确立模式为重新开始训练
+            self.Model_mode = Model_Parameter.Model_mode[0]
             msgBox = QMessageBox()
             datas = []
             id = 0
@@ -263,25 +277,15 @@ class MainWindow(QMainWindow):
                 with open(Model_Parameter.id_path, 'wb') as f:
                     pickle.dump(int(id), f)
 
-                self.model_LR.LR_train(Model_Parameter.Model_mode[0], datas)
-                self.model_SVM.SVM_train(Model_Parameter.Model_mode[0], datas)
-                self.model_DNN.DNN_train(Model_Parameter.Model_mode[0], datas)
+                # 等待线程结束任务再进行处理
+                if not self.thread.isRunning():
+                    # 开启线程处理
+                    self.thread.get_data(datas)
+                    self.thread.start()
 
-                msgBox.information(self, Parameter.Message_tips["Windows_title"],
-                               Parameter.Message_tips["Train Finish"], QMessageBox.Ok)
             else:
                 msgBox.warning(self, Parameter.Message_tips["Windows_title"],
                                Parameter.Message_tips["Data Missing"], QMessageBox.Ok)
-
-            # 恢复所有其他按钮
-            if not self.button1.isEnabled():
-                self.button1.setEnabled(True)
-            if not self.button2.isEnabled():
-                self.button2.setEnabled(True)
-            if not self.button3.isEnabled():
-                self.button3.setEnabled(True)
-            if not self.button4.isEnabled():
-                self.button4.setEnabled(True)
 
     def func2(self):
 
@@ -291,11 +295,9 @@ class MainWindow(QMainWindow):
             self.search_dialog.lineEdit_account.setText(self.user_id)
             self.search_dialog.show()
         else:
-            # 禁用所有其他按钮保证系统稳定性
-            self.button1.setEnabled(False)
-            self.button2.setEnabled(False)
-            self.button3.setEnabled(False)
-            self.button4.setEnabled(False)
+
+            # 确立模式为继续训练
+            self.Model_mode = Model_Parameter.Model_mode[1]
 
             msgBox = QMessageBox()
             datas = []
@@ -316,12 +318,12 @@ class MainWindow(QMainWindow):
                     with open(Model_Parameter.id_path, 'wb') as f:
                         pickle.dump(int(id), f)
 
-                    self.model_LR.LR_train(Model_Parameter.Model_mode[1], datas)
-                    self.model_SVM.SVM_train(Model_Parameter.Model_mode[1], datas)
-                    self.model_DNN.DNN_train(Model_Parameter.Model_mode[1], datas)
+                    # 等待线程结束任务再进行处理
+                    if not self.thread.isRunning():
+                        # 开启线程处理
+                        self.thread.get_data(datas)
+                        self.thread.start()
 
-                    msgBox.information(self, Parameter.Message_tips["Windows_title"],
-                                   Parameter.Message_tips["Train Finish"], QMessageBox.Ok)
                 else:
                     msgBox.warning(self, Parameter.Message_tips["Windows_title"],
                                    Parameter.Message_tips["Train Failed"], QMessageBox.Ok)
@@ -356,11 +358,8 @@ class MainWindow(QMainWindow):
             self.echarts.calculate_graph()
             self.echarts.show()
         else:
-            # 禁用所有其他按钮保证系统稳定性
-            self.button1.setEnabled(False)
-            self.button2.setEnabled(False)
-            self.button3.setEnabled(False)
-            self.button4.setEnabled(False)
+            # 确立模式为评估模型
+            self.Model_mode = Model_Parameter.Model_mode[2]
 
             msgBox = QMessageBox()
             datas = []
@@ -378,28 +377,15 @@ class MainWindow(QMainWindow):
                 with open(Model_Parameter.id_path, 'wb') as f:
                     pickle.dump(int(id), f)
 
-                LR_ACC = self.model_LR.LR_test(datas)
-                SVM_ACC = self.model_SVM.SVM_test(datas)
-                DNN_ACC = self.model_DNN.DNN_test(datas)
-                print("LR model level is ", LR_ACC)
-                print("SVM model level is ", SVM_ACC)
-                print("DNN model level is ", DNN_ACC)
+                # 等待线程结束任务再进行处理
+                if not self.thread.isRunning():
+                    # 开启线程处理
+                    self.thread.get_data(datas)
+                    self.thread.start()
 
-                msgBox.information(self, Parameter.Message_tips["Windows_title"],
-                               Parameter.Message_tips["Test Finish"], QMessageBox.Ok)
             else:
                 msgBox.warning(self, Parameter.Message_tips["Windows_title"],
                                Parameter.Message_tips["Test Failed"], QMessageBox.Ok)
-
-            # 恢复所有其他按钮
-            if not self.button1.isEnabled():
-                self.button1.setEnabled(True)
-            if not self.button2.isEnabled():
-                self.button2.setEnabled(True)
-            if not self.button3.isEnabled():
-                self.button3.setEnabled(True)
-            if not self.button4.isEnabled():
-                self.button4.setEnabled(True)
 
     def get_slot(self,user_id):
         self.user_id = user_id
@@ -429,14 +415,37 @@ class MainWindow(QMainWindow):
                 self.button3.setText(Parameter.Butten_Name["Search"])
                 self.button4.setText(Parameter.Butten_Name["Find All"])
 
+                # 装入右布局
+                self.right_splitter.addWidget(self.right_splitter_text)
+                self.right_splitter.addWidget(self.table_view)
+                self.right_splitter.addWidget(self.right_splitter_button)
+
             elif self.identity == Parameter.identity["Student"]:
                 self.button2.setText(Parameter.Butten_Name["Predict"])
                 self.button3.setText(Parameter.Butten_Name["Search"])
                 self.button4.setText(Parameter.Butten_Name["Score Graph"])
+
+                # 装入右布局
+                self.right_splitter.addWidget(self.right_splitter_text)
+                self.right_splitter.addWidget(self.table_view)
+                self.right_splitter.addWidget(self.right_splitter_button)
             else:
                 self.button2.setText(Parameter.Butten_Name["Retraining"])
                 self.button3.setText(Parameter.Butten_Name["Keep On Train"])
                 self.button4.setText(Parameter.Butten_Name["Assessment Model"])
+
+                # 初始页面
+                self.graph.load(QUrl("file:///" + r"/".join(
+                    os.getcwd().split("\\")) + "/" + Model_Parameter.Html_temp_path + Model_Parameter.index_path))
+
+                # 装入右布局
+                self.right_splitter.addWidget(self.right_splitter_text)
+                self.right_splitter.addWidget(self.right_splitter_graph)
+                self.right_splitter.addWidget(self.right_splitter_button)
+
+            # 用户身份确认后，所有部分布局装入总布局
+            self.main_splitter.addWidget(self.left_splitter)
+            self.main_splitter.addWidget(self.right_splitter)
 
             if self.identity == Parameter.identity["Student"]:
                 self.Student_client()
@@ -444,6 +453,7 @@ class MainWindow(QMainWindow):
                 self.Techer_client()
             else:
                 self.Administrator_client()
+
         else:
             print("Error! the User not normal identity.")
             return
@@ -464,6 +474,182 @@ class MainWindow(QMainWindow):
         # 仅可读数据表
         self.table_model.setEditStrategy(QSqlTableModel.OnManualSubmit)
         self.statusBar().showMessage("欢迎进入系统.本客户端为管理员使用.", 3000)  # 设置状态栏显示的消息
+
+    def Html_tips(self):
+        self.graph.load(QUrl("file:///" + r"/".join(
+            os.getcwd().split("\\")) + "/" + Model_Parameter.Html_temp_path + Model_Parameter.wait_path))
+
+    def Train_graph(self, data_list):
+
+        Clear_Echarts()
+        data_list_len = len(data_list)
+
+        # 常规显示
+        if data_list_len != len(Parameter.Visual_Graph["Line_model_name_index"]):
+
+            print(data_list[0], data_list[1])
+            # 构造折线图
+            line1 = Line(Parameter.Visual_Graph["Func_name"][3])
+            # Loss图
+            line1.add(Parameter.Visual_Graph["Line_name"][data_list[data_list_len-1][0]], data_list[0], data_list[1],
+                      xaxis_rotate=Parameter.Visual_Graph["Line_x_rotate"],
+                      xaxis_name=Parameter.Visual_Graph["Columns_Name"][2],
+                      yaxis_name=Parameter.Visual_Graph["Columns_Name"][3],
+                      yaxis_name_gap=Parameter.Visual_Graph["Y_gap"],
+                      is_more_utils=True,
+                      is_smooth=True)
+
+            # Acc图
+            line2 = Line(Parameter.Visual_Graph["Func_name"][4])
+            line2.add(Parameter.Visual_Graph["Line_name"][data_list[data_list_len-1][1]], data_list[0], data_list[2],
+                      xaxis_rotate=Parameter.Visual_Graph["Line_x_rotate"],
+                      xaxis_name=Parameter.Visual_Graph["Columns_Name"][2],
+                      yaxis_name=Parameter.Visual_Graph["Columns_Name"][4],
+                      yaxis_name_gap=Parameter.Visual_Graph["Y_gap"],
+                      is_more_utils=True,
+                      is_smooth=True)
+
+        # 总图显示
+        else:
+            # 构造折线图
+            line1 = Line(Parameter.Visual_Graph["Func_name"][3])
+            # Loss图
+            line1.add(Parameter.Visual_Graph["Line_name"][data_list[0][3][0]], data_list[0][0], data_list[0][1],
+                      xaxis_rotate=Parameter.Visual_Graph["Line_x_rotate"],
+                      xaxis_name=Parameter.Visual_Graph["Columns_Name"][2],
+                      yaxis_name=Parameter.Visual_Graph["Columns_Name"][3],
+                      yaxis_name_gap=Parameter.Visual_Graph["Y_gap"],
+                      is_more_utils=True,
+                      is_smooth=True)
+            line1.add(Parameter.Visual_Graph["Line_name"][data_list[1][3][0]], data_list[1][0], data_list[1][1],
+                      xaxis_rotate=Parameter.Visual_Graph["Line_x_rotate"],
+                      xaxis_name=Parameter.Visual_Graph["Columns_Name"][2],
+                      yaxis_name=Parameter.Visual_Graph["Columns_Name"][3],
+                      yaxis_name_gap=Parameter.Visual_Graph["Y_gap"],
+                      is_more_utils=True,
+                      is_smooth=True)
+            line1.add(Parameter.Visual_Graph["Line_name"][data_list[2][3][0]], data_list[2][0], data_list[2][1],
+                      xaxis_rotate=Parameter.Visual_Graph["Line_x_rotate"],
+                      xaxis_name=Parameter.Visual_Graph["Columns_Name"][2],
+                      yaxis_name=Parameter.Visual_Graph["Columns_Name"][3],
+                      yaxis_name_gap=Parameter.Visual_Graph["Y_gap"],
+                      is_more_utils=True,
+                      is_smooth=True)
+
+            # Acc图
+            line2 = Line(Parameter.Visual_Graph["Func_name"][4])
+            line2.add(Parameter.Visual_Graph["Line_name"][data_list[0][3][1]], data_list[0][0], data_list[0][2],
+                      xaxis_rotate=Parameter.Visual_Graph["Line_x_rotate"],
+                      xaxis_name=Parameter.Visual_Graph["Columns_Name"][2],
+                      yaxis_name=Parameter.Visual_Graph["Columns_Name"][4],
+                      yaxis_name_gap=Parameter.Visual_Graph["Y_gap"],
+                      is_more_utils=True,
+                      is_smooth=True)
+            line2.add(Parameter.Visual_Graph["Line_name"][data_list[1][3][1]], data_list[1][0], data_list[1][2],
+                      xaxis_rotate=Parameter.Visual_Graph["Line_x_rotate"],
+                      xaxis_name=Parameter.Visual_Graph["Columns_Name"][2],
+                      yaxis_name=Parameter.Visual_Graph["Columns_Name"][4],
+                      yaxis_name_gap=Parameter.Visual_Graph["Y_gap"],
+                      is_more_utils=True,
+                      is_smooth=True)
+            line2.add(Parameter.Visual_Graph["Line_name"][data_list[2][3][1]], data_list[2][0], data_list[2][2],
+                      xaxis_rotate=Parameter.Visual_Graph["Line_x_rotate"],
+                      xaxis_name=Parameter.Visual_Graph["Columns_Name"][2],
+                      yaxis_name=Parameter.Visual_Graph["Columns_Name"][4],
+                      yaxis_name_gap=Parameter.Visual_Graph["Y_gap"],
+                      is_more_utils=True,
+                      is_smooth=True)
+
+        # 顺序渲染
+        page = Page()
+        page.add(line1)
+        page.add(line2)
+
+        page.render(path=Model_Parameter.Echarts_path +
+                          Parameter.Visual_Graph["Graph_Name"][3] +
+                          str(data_list[0][len(data_list[0]) - 1]) + ".html")
+
+        self.graph.load(QUrl("file:///" + r"/".join(
+            os.getcwd().split("\\")) + "/" + Model_Parameter.Echarts_path + Parameter.Visual_Graph["Graph_Name"][3] + str(data_list[0][len(data_list[0])-1]) + ".html"))
+
+    def Test_graph(self, data_list):
+
+        Clear_Echarts()
+
+        data_list_len = len(data_list)
+
+        # 构造折线图
+        line = Line(Parameter.Visual_Graph["Func_name"][5])
+
+        # 常规显示
+        if data_list_len != len(Parameter.Visual_Graph["Line_model_name_index"]):
+
+            # 评估图
+            line.add(Parameter.Visual_Graph["Line_name"][data_list[data_list_len - 1][1]], data_list[0], data_list[1],
+                     xaxis_rotate=Parameter.Visual_Graph["Line_x_rotate"],
+                     xaxis_name=Parameter.Visual_Graph["Columns_Name"][5],
+                     yaxis_name=Parameter.Visual_Graph["Columns_Name"][4],
+                     yaxis_name_gap=Parameter.Visual_Graph["Y_gap"],
+                     is_more_utils=True,
+                     is_smooth=True)
+
+            line.render(path=Model_Parameter.Echarts_path +
+                             Parameter.Visual_Graph["Graph_Name"][4] +
+                             str(data_list[0][len(data_list[0]) - 1]) + ".html")
+
+            self.graph.load(QUrl("file:///" + r"/".join(
+                os.getcwd().split("\\")) + "/" + Model_Parameter.Echarts_path + Parameter.Visual_Graph["Graph_Name"][
+                                     4] + str(data_list[0][len(data_list[0]) - 1]) + ".html"))
+
+        else:
+
+            # 评估图
+            line.add(Parameter.Visual_Graph["Line_name"][4], data_list[0][0], data_list[0][1],
+                     xaxis_rotate=Parameter.Visual_Graph["Line_x_rotate"],
+                     xaxis_name=Parameter.Visual_Graph["Columns_Name"][5],
+                     yaxis_name=Parameter.Visual_Graph["Columns_Name"][4],
+                     yaxis_name_gap=Parameter.Visual_Graph["Y_gap"],
+                     is_more_utils=True,
+                     is_smooth=True)
+
+            line.add(Parameter.Visual_Graph["Line_name"][6], data_list[1][0], data_list[1][1],
+                     xaxis_rotate=Parameter.Visual_Graph["Line_x_rotate"],
+                     xaxis_name=Parameter.Visual_Graph["Columns_Name"][5],
+                     yaxis_name=Parameter.Visual_Graph["Columns_Name"][4],
+                     yaxis_name_gap=Parameter.Visual_Graph["Y_gap"],
+                     is_more_utils=True,
+                     is_smooth=True)
+
+            line.add(Parameter.Visual_Graph["Line_name"][8], data_list[2][0], data_list[2][1],
+                     xaxis_rotate=Parameter.Visual_Graph["Line_x_rotate"],
+                     xaxis_name=Parameter.Visual_Graph["Columns_Name"][5],
+                     yaxis_name=Parameter.Visual_Graph["Columns_Name"][4],
+                     yaxis_name_gap=Parameter.Visual_Graph["Y_gap"],
+                     is_more_utils=True,
+                     is_smooth=True)
+
+            bar = Bar(Parameter.Visual_Graph["Graph_Name"][5])
+            # 均分图
+            bar.add(Parameter.Visual_Graph["Func_name"][6], Parameter.Visual_Graph["Algorithm_Name"], [data_list[0][2][len(data_list)-1],data_list[1][2][len(data_list)-1],data_list[2][2][len(data_list)-1]],
+                     xaxis_rotate=Parameter.Visual_Graph["Line_x_rotate"],
+                     xaxis_name=Parameter.Visual_Graph["Columns_Name"][0],
+                     yaxis_name=Parameter.Visual_Graph["Columns_Name"][6],
+                     yaxis_name_gap=Parameter.Visual_Graph["Y_gap"],
+                     is_more_utils=True,
+                     is_smooth=True)
+
+            # 顺序渲染
+            page = Page()
+            page.add(line)
+            page.add(bar)
+
+            page.render(path=Model_Parameter.Echarts_path +
+                             Parameter.Visual_Graph["Graph_Name"][5] +
+                             str(data_list[0][len(data_list[0]) - 1]) + ".html")
+
+            self.graph.load(QUrl("file:///" + r"/".join(
+                os.getcwd().split("\\")) + "/" + Model_Parameter.Echarts_path + Parameter.Visual_Graph["Graph_Name"][
+                                     5] + str(data_list[0][len(data_list[0]) - 1]) + ".html"))
 
 
 class Information(QDialog):
@@ -800,6 +986,7 @@ class Predict(QDialog):
         if not self.Main_win.button4.isEnabled():
             self.Main_win.button4.setEnabled(True)
 
+
 class Search_dialog(QDialog):
     def __init__(self,Main_win,*args, **kwargs):
         # super() 调用父类(超类)的一个方法。
@@ -1019,7 +1206,6 @@ class Create_dialog(QDialog):
             self.clean_text()
             msgBox.warning(self, Parameter.Message_tips["Windows_title"],
                            Parameter.Message_tips["Account_missing"], QMessageBox.Ok)
-
 
 # 登录框
 class Login_dialog(QDialog):
@@ -1421,6 +1607,77 @@ class Echarts(QDialog):
             self.Main_win.button1.setEnabled(True)
         if not self.Main_win.button2.isEnabled():
             self.Main_win.button2.setEnabled(True)
+        if not self.Main_win.button4.isEnabled():
+            self.Main_win.button4.setEnabled(True)
+
+
+class Thread(QThread):
+    signal_model_tips = pyqtSignal()
+    signal_model_train = pyqtSignal(list)
+    signal_model_test = pyqtSignal(list)
+
+    def __init__(self,Main_win):
+        super(Thread, self).__init__()
+        self.Main_win = Main_win
+
+    def get_data(self,datas):
+        self.datas = datas
+
+    def run(self):
+
+        # 弹出等待提示Html
+        self.signal_model_tips.emit()
+
+        # 禁用其他按钮保证系统稳定性
+        self.Main_win.button1.setEnabled(False)
+        self.Main_win.button2.setEnabled(False)
+        self.Main_win.button3.setEnabled(False)
+        self.Main_win.button4.setEnabled(False)
+
+        if self.Main_win.Model_mode != Model_Parameter.Model_mode[2]:
+            # 执行模型功能
+            datas = self.Main_win.model_LR.LR_train(self.Main_win.Model_mode, self.datas)
+            for step_list,loss_list,acc_list in datas:
+                 data_list1 = [step_list, loss_list, acc_list,Parameter.Visual_Graph["Line_model_name_index"][0]]
+                 self.signal_model_train.emit(data_list1)
+
+            datas = self.Main_win.model_SVM.SVM_train(self.Main_win.Model_mode, self.datas)
+            for step_list,loss_list,acc_list in datas:
+                data_list2 = [step_list, loss_list, acc_list, Parameter.Visual_Graph["Line_model_name_index"][1]]
+                self.signal_model_train.emit(data_list2)
+
+            datas = self.Main_win.model_DNN.DNN_train(self.Main_win.Model_mode, self.datas)
+            for step_list,loss_list,acc_list in datas:
+                data_list3 = [step_list, loss_list, acc_list, Parameter.Visual_Graph["Line_model_name_index"][2]]
+                self.signal_model_train.emit(data_list3)
+
+            # 做一次总结图
+            self.signal_model_train.emit([data_list1, data_list2, data_list3])
+        else:
+            datas = self.Main_win.model_LR.LR_test(self.datas)
+            for times_list,new_score_list,average_score_list in datas:
+                data_list1 = [times_list,new_score_list,average_score_list,Parameter.Visual_Graph["Line_model_name_index"][0]]
+                self.signal_model_test.emit(data_list1)
+
+            datas = self.Main_win.model_SVM.SVM_test(self.datas)
+            for times_list,new_score_list,average_score_list in datas:
+                data_list2 = [times_list,new_score_list,average_score_list,Parameter.Visual_Graph["Line_model_name_index"][1]]
+                self.signal_model_test.emit(data_list2)
+
+            datas = self.Main_win.model_DNN.DNN_test(self.datas)
+            for times_list,new_score_list,average_score_list in datas:
+                data_list3 = [times_list,new_score_list,average_score_list,Parameter.Visual_Graph["Line_model_name_index"][2]]
+                self.signal_model_test.emit(data_list3)
+
+            self.signal_model_test.emit([data_list1, data_list2, data_list3])
+
+        # 恢复所有其他按钮
+        if not self.Main_win.button1.isEnabled():
+            self.Main_win.button1.setEnabled(True)
+        if not self.Main_win.button2.isEnabled():
+            self.Main_win.button2.setEnabled(True)
+        if not self.Main_win.button3.isEnabled():
+            self.Main_win.button3.setEnabled(True)
         if not self.Main_win.button4.isEnabled():
             self.Main_win.button4.setEnabled(True)
 

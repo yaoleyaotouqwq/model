@@ -151,14 +151,17 @@ Tablefield_Name = ["序号" , "学号" ,  "考场座位号",
 
 TableView_account_index = 1
 
+Model_Refresh_num = 100
+
 Visual_Graph = {
-    "Graph_Name":["学号","数据图","图表选项"],
-    "Columns_Name":["算法","分数区间"],
+    "Graph_Name":["学号","数据图","图表选项","训练过程","评估过程","评估总结"],
+    "Columns_Name":["算法","分数区间","训练步数","损失值","准确率(%)","评估集","平均分"],
     "Algorithm_Name":["LR","SVM","DNN"],
     "Student_func":["考题得分占比","SPOC单元测试对比","课堂测试对比"],
-    "Func_name":["考题饼图","SPOC折线图","课堂测试雷达图"],
+    "Func_name":["考题饼图","SPOC折线图","课堂测试雷达图","训练损失值","训练准确率","评估准确率（K折交叉检验）","算法评估均分"],
     "Func_data_name":[(3,11),(12,20),(23,28)],
-    "Line_name":["本用户分数线","最低分数线","最高分数线"],
+    "Line_name":["本用户分数线","最低分数线","最高分数线","LR_LOSS","LR_ACC","SVM_LOSS","SVM_ACC","DNN_LOSS","DNN_ACC"],
+    "Line_model_name_index":[[3,4],[5,6],[7,8]],
     "Line_x_rotate":330,
     "Radar_name":"课堂测试分数",
     "Radar_space":[0,100],

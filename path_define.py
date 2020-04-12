@@ -86,6 +86,10 @@ tensorBoard_path = {
     "DNN":"tensorBoard_path/DNN",
 }
 
+Html_temp_path = "Html_tips/"
 Echarts_path = "Echarts/"
+
+index_path = "index.html"
+wait_path = "wait.html"
 
 id_path = "data_id"
