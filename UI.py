@@ -2,6 +2,7 @@ import os
 import pickle
 import sys
 
+from PyQt5.QtGui import QCursor
 from PyQt5.QtWebEngineWidgets import *
 from PyQt5.QtSql import QSqlDatabase, QSqlQuery, QSqlTableModel
 from PyQt5.QtWidgets import *
@@ -69,6 +70,7 @@ class MainWindow(QMainWindow):
         db.setPassword(Parameter.Db['Password'])
 
         if not db.open():
+            print(db.lastError().text())
             db.close()
             exit()
 
@@ -111,21 +113,26 @@ class MainWindow(QMainWindow):
         self.table_model.setHeaderData(27, Qt.Horizontal, Parameter.Tablefield_Name[27])
 
     def mainwindow_layout(self):
+
         self.setWindowTitle(Parameter.Window_Name["Main"])
         self.resize(Parameter.Window_Size["Width"]["Main"], Parameter.Window_Size["Height"]["Main"])
-
         # 把窗口的问号按钮去掉
         self.setWindowFlags(Qt.WindowCloseButtonHint)
+
+        # self.setObjectName("table_view")
+        # self.setStyleSheet("#table_view{border-image:url(Image/main_window.jpg);}")
 
         # 初始化数据表
         self.initialize_table()
 
         # 建立分割窗口和各类小控件
-        self.main_splitter = QSplitter()
-        self.left_splitter = QSplitter()
-        self.right_splitter = QSplitter()
-        self.right_splitter_text = QSplitter()
-        self.right_splitter_button = QSplitter()
+        self.main_widget = QWidget(self)
+        self.main_splitter = QHBoxLayout()
+        self.left_splitter = QVBoxLayout()
+        self.right_splitter = QVBoxLayout()
+        self.right_splitter_text = QHBoxLayout()
+        self.right_splitter_graph = QHBoxLayout()
+        self.right_splitter_button = QHBoxLayout()
         self.label1 = QLabel("")
         self.label2 = QLabel("")
         self.label1.setAlignment(QtCore.Qt.AlignRight)
@@ -134,6 +141,19 @@ class MainWindow(QMainWindow):
         self.button2 = QPushButton()
         self.button3 = QPushButton()
         self.button4 = QPushButton()
+
+        self.button1.setObjectName("main_button1")
+        self.button1.setStyleSheet("#main_button1{border-image:url("+Model_Parameter.Button_bg_path["Information"]+");}")
+
+        self.button1.setFixedSize(Parameter.Button_size["Main"]["Button1"][0],
+                                  Parameter.Button_size["Main"]["Button1"][1])
+        self.button2.setFixedSize(Parameter.Button_size["Main"]["Button2"][0],
+                                  Parameter.Button_size["Main"]["Button2"][1])
+
+        self.button1.setCursor(QCursor(Qt.PointingHandCursor))
+        self.button2.setCursor(QCursor(Qt.PointingHandCursor))
+        self.button3.setCursor(QCursor(Qt.PointingHandCursor))
+        self.button4.setCursor(QCursor(Qt.PointingHandCursor))
 
         # 表视图(仅学生和教师用户可用)
         self.table_view = QTableView()
@@ -145,35 +165,8 @@ class MainWindow(QMainWindow):
         self.table_view.doubleClicked.connect(self.doubleClicked)
 
         # 模型运行结果页面(仅管理员可用)
-        # 创建基本控件基类
-        self.frame = QFrame(self)
-        # 绘制矩形面板
-        self.frame.setFrameShape(QFrame.StyledPanel)
-        # 3D凸起线
-        self.frame.setFrameShadow(QFrame.Raised)
         # 可视化图形
         self.graph = QWebEngineView()
-        self.right_splitter_graph = QSplitter(self.frame)
-        self.right_splitter_graph.addWidget(self.graph)
-        # 垂直布局
-        self.right_splitter_graph.setOrientation(Qt.Vertical)
-        # 变为不可拉伸
-        self.right_splitter_graph.setOpaqueResize(False)
-
-        # 将两个局部分割布局为垂直布局
-        self.left_splitter.setOrientation(Qt.Vertical)
-        self.right_splitter.setOrientation(Qt.Vertical)
-
-        #  数据表文字提示为垂直布局
-        self.right_splitter_text.setOrientation(Qt.Vertical)
-        # 数据表功能按钮提示为水平布局
-        self.right_splitter_button.setOrientation(Qt.Horizontal)
-
-        # 变为不可拉伸
-        self.left_splitter.setOpaqueResize(False)
-        self.right_splitter.setOpaqueResize(False)
-        self.right_splitter_text.setOpaqueResize(False)
-        self.right_splitter_button.setOpaqueResize(False)
 
         # 依次装入左布局
         self.left_splitter.addWidget(self.button1)
@@ -186,7 +179,8 @@ class MainWindow(QMainWindow):
         self.right_splitter_button.addWidget(self.button4)
 
         # 中心放置
-        self.setCentralWidget(self.main_splitter)
+        self.main_widget.setLayout(self.main_splitter)
+        self.setCentralWidget(self.main_widget)
 
         # 个人信息按钮
         self.button1.clicked.connect(self.information)
@@ -347,16 +341,26 @@ class MainWindow(QMainWindow):
             self.table_model.select()
         elif self.identity == Parameter.identity["Student"]:
 
-            # 禁用所有其他按钮保证系统稳定性
-            self.button1.setEnabled(False)
-            self.button2.setEnabled(False)
-            self.button4.setEnabled(False)
+            msgBox = QMessageBox()
+            sql_word = "SELECT * FROM `score_data` where 学号='" + self.user_id + "'"
 
-            # 设置功能区域和图形区域的标题
-            self.echarts.label_left.setText(Parameter.Visual_Graph["Graph_Name"][2])
-            self.echarts.label_right.setText(Parameter.Visual_Graph["Graph_Name"][1])
-            self.echarts.calculate_graph()
-            self.echarts.show()
+            # 账号信息判断
+            if self.query.exec_(sql_word) and self.query.next():
+                # 禁用所有其他按钮保证系统稳定性
+                self.button1.setEnabled(False)
+                self.button2.setEnabled(False)
+                self.button4.setEnabled(False)
+
+                # 设置功能区域和图形区域的标题
+                self.echarts.label_left.setText(Parameter.Visual_Graph["Graph_Name"][2])
+                self.echarts.label_right.setText(Parameter.Visual_Graph["Graph_Name"][1])
+                self.echarts.calculate_graph()
+                self.echarts.show()
+            else:
+                # 查询无结果
+                msgBox.warning(self, Parameter.Message_tips["Windows_title"],
+                               Parameter.Message_tips["Search Failed"], QMessageBox.Ok)
+
         else:
             # 确立模式为评估模型
             self.Model_mode = Model_Parameter.Model_mode[2]
@@ -408,44 +412,99 @@ class MainWindow(QMainWindow):
             self.label2.setText("欢迎用户："+self.user_id)
 
             # 设置按钮名称
-            self.button1.setText(Parameter.Butten_Name["Information"])
-            self.button1.setText(Parameter.Butten_Name["Information"])
+            # self.button1.setText(Parameter.Butten_Name["Information"])
             if self.identity == Parameter.identity["Teacher"]:
-                self.button2.setText(Parameter.Butten_Name["Predict"])
-                self.button3.setText(Parameter.Butten_Name["Search"])
-                self.button4.setText(Parameter.Butten_Name["Find All"])
+                # self.button2.setText(Parameter.Butten_Name["Predict"])
+                # self.button3.setText(Parameter.Butten_Name["Search"])
+                # self.button4.setText(Parameter.Butten_Name["Find All"])
+                self.button2.setObjectName("main_button2")
+                self.button2.setStyleSheet(
+                    "#main_button2{border-image:url("+Model_Parameter.Button_bg_path["Predict"]+");}")
+                self.button3.setObjectName("main_button3")
+                self.button3.setStyleSheet(
+                    "#main_button3{border-image:url("+Model_Parameter.Button_bg_path["Search"]+");}")
+                self.button4.setObjectName("main_button4")
+                self.button4.setStyleSheet(
+                    "#main_button4{border-image:url("+Model_Parameter.Button_bg_path["Find All"]+");}")
+
+                self.button3.setFixedSize(Parameter.Button_size["Main"]["Button3"][0],
+                                          Parameter.Button_size["Main"]["Button3"][1])
+                self.button4.setFixedSize(Parameter.Button_size["Main"]["Button4"][0],
+                                          Parameter.Button_size["Main"]["Button4"][1])
 
                 # 装入右布局
-                self.right_splitter.addWidget(self.right_splitter_text)
-                self.right_splitter.addWidget(self.table_view)
-                self.right_splitter.addWidget(self.right_splitter_button)
+                self.right_splitter_graph.addWidget(self.table_view)
+                self.right_splitter.addLayout(self.right_splitter_text)
+                self.right_splitter.addLayout(self.right_splitter_graph)
+                self.right_splitter.addLayout(self.right_splitter_button)
 
             elif self.identity == Parameter.identity["Student"]:
-                self.button2.setText(Parameter.Butten_Name["Predict"])
-                self.button3.setText(Parameter.Butten_Name["Search"])
-                self.button4.setText(Parameter.Butten_Name["Score Graph"])
+                # self.button2.setText(Parameter.Butten_Name["Predict"])
+                # self.button3.setText(Parameter.Butten_Name["Search"])
+                # self.button4.setText(Parameter.Butten_Name["Score Graph"])
+
+                self.button2.setObjectName("main_button2")
+                self.button2.setStyleSheet(
+                    "#main_button2{border-image:url("+Model_Parameter.Button_bg_path["Predict"]+");}")
+                self.button3.setObjectName("main_button3")
+                self.button3.setStyleSheet(
+                    "#main_button3{border-image:url("+Model_Parameter.Button_bg_path["Search"]+");}")
+                self.button4.setObjectName("main_button4")
+                self.button4.setStyleSheet(
+                    "#main_button4{border-image:url("+Model_Parameter.Button_bg_path["Score Graph"]+");}")
+
+                self.button3.setFixedSize(Parameter.Button_size["Main"]["Button3"][0], Parameter.Button_size["Main"]["Button3"][1])
+                self.button4.setFixedSize(Parameter.Button_size["Main"]["Button4"][0], Parameter.Button_size["Main"]["Button4"][1])
 
                 # 装入右布局
-                self.right_splitter.addWidget(self.right_splitter_text)
-                self.right_splitter.addWidget(self.table_view)
-                self.right_splitter.addWidget(self.right_splitter_button)
+                self.right_splitter_graph.addWidget(self.table_view)
+                self.right_splitter.addLayout(self.right_splitter_text)
+                self.right_splitter.addLayout(self.right_splitter_graph)
+                self.right_splitter.addLayout(self.right_splitter_button)
             else:
-                self.button2.setText(Parameter.Butten_Name["Retraining"])
-                self.button3.setText(Parameter.Butten_Name["Keep On Train"])
-                self.button4.setText(Parameter.Butten_Name["Assessment Model"])
+                # self.button2.setText(Parameter.Butten_Name["Retraining"])
+                # self.button3.setText(Parameter.Butten_Name["Keep On Train"])
+                # self.button4.setText(Parameter.Butten_Name["Assessment Model"])
+
+                self.button2.setObjectName("main_button2")
+                self.button2.setStyleSheet(
+                    "#main_button2{border-image:url("+Model_Parameter.Button_bg_path["Retraining"]+");}")
+                self.button3.setObjectName("main_button3")
+                self.button3.setStyleSheet(
+                    "#main_button3{border-image:url("+Model_Parameter.Button_bg_path["Keep On Train"]+");}")
+                self.button4.setObjectName("main_button4")
+                self.button4.setStyleSheet(
+                    "#main_button4{border-image:url("+Model_Parameter.Button_bg_path["Assessment Model"]+");}")
+
+                self.button3.setFixedSize(Parameter.Button_size["Main"]["Button3"][0],
+                                          Parameter.Button_size["Main"]["Button3"][1])
+                self.button4.setFixedSize(Parameter.Button_size["Main"]["Button4"][0],
+                                          Parameter.Button_size["Main"]["Button4"][1])
 
                 # 初始页面
                 self.graph.load(QUrl("file:///" + r"/".join(
                     os.getcwd().split("\\")) + "/" + Model_Parameter.Html_temp_path + Model_Parameter.index_path))
 
                 # 装入右布局
-                self.right_splitter.addWidget(self.right_splitter_text)
-                self.right_splitter.addWidget(self.right_splitter_graph)
-                self.right_splitter.addWidget(self.right_splitter_button)
+                self.right_splitter_graph.addWidget(self.graph)
+                self.right_splitter.addLayout(self.right_splitter_text)
+                self.right_splitter.addLayout(self.right_splitter_graph)
+                self.right_splitter.addLayout(self.right_splitter_button)
 
-            # 用户身份确认后，所有部分布局装入总布局
-            self.main_splitter.addWidget(self.left_splitter)
-            self.main_splitter.addWidget(self.right_splitter)
+            # 用户身份确认后，所有部分布局装入总布局,设置大小比例（序号,比例）
+            self.main_splitter.addLayout(self.left_splitter)
+            self.main_splitter.addLayout(self.right_splitter)
+
+            self.right_splitter.setStretch(Parameter.Layout_Stretch["Right"]["Text"][0],
+                                           Parameter.Layout_Stretch["Right"]["Text"][1])
+            self.right_splitter.setStretch(Parameter.Layout_Stretch["Right"]["Graph"][0],
+                                           Parameter.Layout_Stretch["Right"]["Graph"][1])
+            self.right_splitter.setStretch(Parameter.Layout_Stretch["Right"]["Button"][0],
+                                           Parameter.Layout_Stretch["Right"]["Button"][1])
+            self.main_splitter.setStretch(Parameter.Layout_Stretch["Main"]["Left"][0],
+                                          Parameter.Layout_Stretch["Main"]["Left"][1])
+            self.main_splitter.setStretch(Parameter.Layout_Stretch["Main"]["Right"][0],
+                                          Parameter.Layout_Stretch["Main"]["Right"][1])
 
             if self.identity == Parameter.identity["Student"]:
                 self.Student_client()
@@ -487,7 +546,6 @@ class MainWindow(QMainWindow):
         # 常规显示
         if data_list_len != len(Parameter.Visual_Graph["Line_model_name_index"]):
 
-            print(data_list[0], data_list[1])
             # 构造折线图
             line1 = Line(Parameter.Visual_Graph["Func_name"][3])
             # Loss图
@@ -630,7 +688,7 @@ class MainWindow(QMainWindow):
 
             bar = Bar(Parameter.Visual_Graph["Graph_Name"][5])
             # 均分图
-            bar.add(Parameter.Visual_Graph["Func_name"][6], Parameter.Visual_Graph["Algorithm_Name"], [data_list[0][2][len(data_list)-1],data_list[1][2][len(data_list)-1],data_list[2][2][len(data_list)-1]],
+            bar.add(Parameter.Visual_Graph["Func_name"][6], Parameter.Visual_Graph["Algorithm_Name"], [data_list[0][2][len(data_list[0][2])-1],data_list[1][2][len(data_list[1][2])-1],data_list[2][2][len(data_list[2][2])-1]],
                      xaxis_rotate=Parameter.Visual_Graph["Line_x_rotate"],
                      xaxis_name=Parameter.Visual_Graph["Columns_Name"][0],
                      yaxis_name=Parameter.Visual_Graph["Columns_Name"][6],
@@ -670,11 +728,18 @@ class Information(QDialog):
 
     def item_layout(self):
 
-        # 创建垂直布局
-        self.verticalLayout = QVBoxLayout()
+        # 创建网格布局
+        self.vertical_layout = QVBoxLayout()
         # 创建水平布局
+        self.level_widget1 = QWidget()
+        self.level_widget2 = QWidget()
+        self.level_widget3 = QWidget()
+        self.level_widget4 = QWidget()
+
         self.level_Layout1 = QHBoxLayout()
         self.level_Layout2 = QHBoxLayout()
+        self.level_Layout3 = QHBoxLayout()
+        self.level_Layout4 = QHBoxLayout()
 
         # 单行文本
         self.account_text = QLabel("")
@@ -691,22 +756,29 @@ class Information(QDialog):
         self.cancel_butten.setText(Parameter.Butten_Name["Cancel"])
 
         # 分别加入水平布局
-        self.level_Layout1.addWidget(self.name_text)
-        self.level_Layout1.addWidget(self.lineEdit_name)
-        self.level_Layout2.addWidget(self.change_butten)
-        self.level_Layout2.addWidget(self.cancel_butten)
+        self.level_Layout1.addWidget(self.account_text)
+        self.level_Layout2.addWidget(self.identity_text)
+        self.level_Layout3.addWidget(self.name_text)
+        self.level_Layout3.addWidget(self.lineEdit_name)
+        self.level_Layout4.addWidget(self.change_butten)
+        self.level_Layout4.addWidget(self.cancel_butten)
+
+        self.level_widget1.setLayout(self.level_Layout1)
+        self.level_widget2.setLayout(self.level_Layout2)
+        self.level_widget3.setLayout(self.level_Layout3)
+        self.level_widget4.setLayout(self.level_Layout4)
 
         # 水平布局控件加入垂直布局
-        self.verticalLayout.addWidget(self.account_text)
-        self.verticalLayout.addWidget(self.identity_text)
-        self.verticalLayout.addLayout(self.level_Layout1)
-        self.verticalLayout.addLayout(self.level_Layout2)
+        self.vertical_layout.addWidget(self.level_widget1)
+        self.vertical_layout.addWidget(self.level_widget2)
+        self.vertical_layout.addWidget(self.level_widget3)
+        self.vertical_layout.addWidget(self.level_widget4)
 
         # 处理按钮信号
         self.change_butten.clicked.connect(self.change_click)
         self.cancel_butten.clicked.connect(self.cancel_click)
 
-        self.setLayout(self.verticalLayout)
+        self.setLayout(self.vertical_layout)
 
     def reset_and_quit(self):
         self.lineEdit_name.setText(self.Main_win.name)

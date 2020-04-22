@@ -53,14 +53,22 @@ Window_Size = {
     "Height":{
         "Create":700,
         "Login":500,
-        "Infor":700,
+        "Infor":400,
         "Predict":400,
         "Search":300,
         "Echarts":700,
-        "Main":800
+        "Main":900
     }
 }
 
+Button_size = {
+    "Main":{
+        "Button1":[150,50],
+        "Button2":[150,50],
+        "Button3":[500,50],
+        "Button4":[500,50],
+    }
+}
 Text_label = {
     "Login":{
         "account":"账号:",
@@ -134,11 +142,12 @@ Butten_Name = {
     "Predict":"预测",
     "Information":"个人信息",
     "Find All":"显示所有学生成绩数据",
-    "Score Graph":"成绩图表展示",
+    "Score Graph":"成绩图表",
     "Retraining":"重新训练模型",
     "Keep On Train":"继续训练模型",
     "Assessment Model":"评估模型"
 }
+
 
 Search_Name = "学号"
 
@@ -153,6 +162,17 @@ TableView_account_index = 1
 
 Model_Refresh_num = 100
 
+Layout_Stretch = {
+    "Main":{
+        "Left":[0,1],
+        "Right":[1,5]
+    },
+    "Right":{
+        "Text":[0,0],
+        "Graph":[1,7],
+        "Button":[2,2]
+    }
+}
 Visual_Graph = {
     "Graph_Name":["学号","数据图","图表选项","训练过程","评估过程","评估总结"],
     "Columns_Name":["算法","分数区间","训练步数","损失值","准确率(%)","评估集","平均分"],

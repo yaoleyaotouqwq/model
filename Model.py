@@ -1,4 +1,5 @@
 import tensorflow as tf
+import pickle as pk
 import GUI_Parameter as Parameter
 import path_define as PreDefine
 import Data_process as data_process
@@ -21,11 +22,11 @@ class LR:
             # 采用softmax实现逻辑回归的多分类
             self.Result = tf.nn.softmax(tf.matmul(self.X, self.W) + self.B)
             # with tf.name_scope("Loss"):
-            self.Loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=self.Result, labels=self.Y))
+            self.Loss = tf.reduce_mean(tf.reduce_sum(-self.Y*tf.log(self.Result), reduction_indices=1))
             # with tf.name_scope("Train_op"):
             self.Train_op = tf.train.GradientDescentOptimizer(PreDefine.Learning_rate["LR"]).minimize(self.Loss)
             # with tf.name_scope("Accuracy"):
-            self.Acc = tf.reduce_mean(tf.cast(tf.equal(self.Result, self.Y), tf.float32))
+            self.Acc = tf.reduce_mean(tf.cast(tf.equal(tf.argmax(self.Y, 1), tf.argmax(self.Result, 1)), 'float'))
         # 用来显示标量信息
         # tf.summary.scalar("loss", self.Loss)
         # tf.summary.scalar("accuracy", self.Acc)
@@ -137,7 +138,7 @@ class LR:
                     self.X: [x_data[i]],
                     self.Y: [y_data[i]]
                 }
-
+                print(self.sess.run(self.Result, feed_dict=feed))
                 result.append(np.argmax(self.sess.run(self.Result, feed_dict=feed)))
                 truly.append(np.argmax(y_data[i]))
 
@@ -200,7 +201,6 @@ class LR:
 
                 if step % 20 == 0:
                     acc = self.Acc.eval(feed_dict=feed)
-
                     print("step %d , Loss is %f , Acc is %f" % (step,loss,acc))
 
                 if step % Parameter.Model_Refresh_num == 0:
@@ -211,6 +211,7 @@ class LR:
 
                     yield step_list, loss_list, acc_list
 
+            print("Train acc is "+ str(self.Acc.eval(feed_dict={self.X:Batch.Data_X,self.Y:Batch.Data_Y})))
             Saver.save(self.sess,PreDefine.Model_path2["LR"]+'/LR',global_step=step)
 
 
@@ -221,25 +222,69 @@ class SVM:
         with self.Graph.as_default():
             self.X = tf.placeholder(dtype=tf.float32, shape=PreDefine.X_shape["SVM"])
             self.Y = tf.placeholder(dtype=tf.float32, shape=PreDefine.Y_shape["SVM"])
-            self.W = tf.Variable(tf.truncated_normal(shape=PreDefine.W_shape["SVM"], stddev=PreDefine.Normal_variable))
-            self.B = tf.Variable(tf.constant(value=PreDefine.B_varibale, shape=PreDefine.B_shape["SVM"]))
+            self.Prediction_gird = tf.placeholder(shape=PreDefine.SVM_prediction_gird_shape,dtype=tf.float32)
+            self.B = tf.Variable(tf.truncated_normal(shape=PreDefine.B_shape["SVM"], stddev=PreDefine.Normal_variable))
 
-            # 线性模型
-            self.linear_model = tf.subtract(tf.matmul(self.X, self.W), self.B)
+            # 径向基函数（RBF）,将线性不可分问题转化到高纬度的线性可分
+            # 公式为k = exp{- ||x-xc||^2/(2*σ^2) }
+            # 缩放比例,通常取值0.01、0.1、1、10、100，相当于公式的 -1/2*σ^2
+            self.Gamma = tf.constant(PreDefine.RBF["Gamma"])
+            self.Dist = tf.reshape(tf.reduce_sum(tf.square(self.X),1),[-1,1])
+            self.Norm = tf.add(
+                tf.subtract(
+                    self.Dist,
+                    tf.multiply(2.,tf.matmul(self.X,tf.transpose(self.X)))
+                ),
+                tf.transpose(self.Dist)
+            )
+            self.Kernel = tf.exp(tf.multiply(self.Gamma,tf.abs(self.Norm)))
 
-            # 径向基函数（RBF）
-            # L2范数
-            self.L2_norm = tf.reduce_sum(tf.square(self.W))
+            # 对偶问题Loss = −∑(∑b−∑(K*||b||^2 *||y||^2))
+            self.Loss = tf.reduce_sum(
+                tf.negative(
+                    tf.subtract(
+                        tf.reduce_sum(self.B),
+                            tf.reduce_sum(
+                                tf.multiply(
+                                    self.Kernel,
+                                    tf.multiply(
+                                        tf.matmul(tf.transpose(self.B),self.B),
+                                        self.reshape_matmul(self.Y)
+                                    )
+                                ),[1, 2]
+                            )
+                        )
+                    )
+                )
 
-            # hinge损失函数 max(0, 1-pred*actual)
-            self.hinge = tf.reduce_mean(tf.maximum(0., tf.subtract(1., tf.multiply(self.linear_model, self.Y))))
-            # Loss = hinge + alpha * L2_norm
-            self.alpha = tf.constant([0.01])
-            self.Loss = tf.add(self.hinge, tf.multiply(self.alpha, self.L2_norm))
-            self.Acc = tf.reduce_mean(tf.cast(tf.equal(self.linear_model, self.Y), tf.float32))
+            self.Predict_kernal = tf.exp(
+                tf.multiply(
+                    self.Gamma,
+                    tf.abs(
+                        tf.add(
+                            tf.subtract(
+                                tf.reshape(tf.reduce_sum(tf.square(self.X),1),[-1,1]),
+                                tf.multiply(2.,tf.matmul(self.X,tf.transpose(self.Prediction_gird)))
+                            ),
+                            tf.transpose(tf.reshape(tf.reduce_sum(tf.square(self.Prediction_gird),1),[-1,1]))
+                        )
+                    )
+                )
+            )
+
+            self.Predict_output = tf.matmul(tf.multiply(self.Y, self.B), self.Predict_kernal)
+            # 平均值，tf.expand_dims增加一维
+            self.Predict_result = tf.argmax(self.Predict_output - tf.expand_dims(tf.reduce_mean(self.Predict_output, 1), 1), 0)
+            # 训练准确率
+            self.Predict_ACC = tf.reduce_mean(tf.cast(tf.equal(self.Predict_result, tf.argmax(self.Y, 0)), tf.float32))
 
             # 梯度下降优化
             self.Train_op = tf.train.GradientDescentOptimizer(PreDefine.Learning_rate["SVM"]).minimize(self.Loss)
+
+    def reshape_matmul(self, data):
+        data1 = tf.expand_dims(data, 1)
+        data2 = tf.reshape(data1, [PreDefine.Class_num, PreDefine.Batch_size["SVM"], 1])
+        return tf.matmul(data2, data1)
 
     # 评估统计
     def test_ACC(self, test_data, low_score):
@@ -255,6 +300,8 @@ class SVM:
 
             loss = 0
             acc = 0
+            # 记录最低训练分
+            low_acc = 0
 
             for step in range(PreDefine.Train_step["SVM"]):
                 batches = Batch.get_batch(train_x, train_y,
@@ -263,17 +310,44 @@ class SVM:
                 for data_x, data_y in batches:
                     feed = {
                         self.X: data_x,
-                        self.Y: data_y
+                        self.Y: list(map(list, zip(*data_y)))
                     }
 
                     _, loss = self.sess.run([self.Train_op, self.Loss], feed_dict=feed)
 
                     batch_times += 1
                 if step % 20 == 0:
-                    acc = self.Acc.eval(feed_dict=feed)
+                    acc = self.Predict_ACC.eval(
+                        feed_dict={
+                            self.X: data_x,
+                            self.Y: list(map(list, zip(*data_y))),
+                            self.Prediction_gird: data_x
+                        }
+                    )
+                    if acc >= low_acc:
+                        low_acc = acc
+                        self.vector_x = data_x
+                        self.vector_y = list(map(list, zip(*data_y)))
                     print("step %d , Loss is %f , Acc is %f" % (step, loss, acc))
 
-            acc = self.Acc.eval(feed_dict={self.X: test_x, self.Y: test_y})
+            acc = 0
+
+            # 评估准确率
+            result_list = self.Predict_result.eval(
+                feed_dict={
+                    self.X: self.vector_x,
+                    self.Y: self.vector_y,
+                    self.Prediction_gird: test_x
+                }
+            )
+
+            # 比较结果得到准确率
+            for temp1, temp2 in zip(result_list, test_y):
+                if temp1 == temp2.argmax():
+                    acc += 1
+
+            acc = acc / len(test_y)
+
             print("SVM model the number {0} test score is {1}".format(
                 test_data['times'] + 1, acc))
 
@@ -282,6 +356,12 @@ class SVM:
 
             if new_score >= low_score:
                 low_score = new_score
+
+                # 保存向量
+                with open(PreDefine.Model_path2["SVM"] + '/vector_data', "wb") as f:
+                    pk.dump(self.vector_x, f)
+                    pk.dump(self.vector_y, f)
+
                 # 保存训练的模型
                 Saver = tf.train.Saver()
                 Saver.save(self.sess, PreDefine.Model_path2["SVM"] + '/SVM', global_step=step)
@@ -332,6 +412,7 @@ class SVM:
 
         result = []
         truly = []
+
         # 模型预测
         with tf.Session(graph=self.Graph) as self.sess:
             tf.global_variables_initializer().run()
@@ -341,15 +422,21 @@ class SVM:
             Saver.restore(self.sess, tf.train.latest_checkpoint(PreDefine.Model_path2["SVM"]))
             x_data, y_data = data_process.data_process(score_data)
 
+            # 读取向量
+            with open(PreDefine.Model_path2["SVM"] + '/vector_data', "rb") as f:
+                self.vector_x = pk.load(f)
+                self.vector_y = pk.load(f)
+
             data_len = len(x_data)
 
             for i in range(data_len):
                 feed = {
-                    self.X: [x_data[i]],
-                    self.Y: [y_data[i]]
+                    self.X: self.vector_x,
+                    self.Y: self.vector_y,
+                    self.Prediction_gird:[x_data[i]]
                 }
-
-                result.append(np.argmax(self.sess.run(self.linear_model, feed_dict=feed)))
+                print(self.sess.run(self.Predict_output, feed_dict=feed))
+                result.append(self.sess.run(tf.argmax(self.Predict_output,0), feed_dict=feed)[0])
                 truly.append(np.argmax(y_data[i]))
 
         return [result, truly]
@@ -380,29 +467,54 @@ class SVM:
 
             Batch = Batches.Load_Batch(score_data)
 
+            # 记录最低训练分
+            low_acc = 0
+
             for step in range(PreDefine.Train_step["SVM"]):
                 batches = Batch.get_batch(Batch.Data_X, Batch.Data_Y,
                                           PreDefine.Batch_size["SVM"])
                 for data_x, data_y in batches:
                     feed = {
                         self.X: data_x,
-                        self.Y: data_y
+                        self.Y: list(map(list, zip(*data_y)))
                     }
 
                     _, loss = self.sess.run([self.Train_op, self.Loss], feed_dict=feed)
 
                 if step % 20 == 0:
-                    acc = self.Acc.eval(feed_dict=feed)
+                    acc = self.Predict_ACC.eval(
+                        feed_dict={
+                            self.X: data_x,
+                            self.Y: list(map(list, zip(*data_y))),
+                            self.Prediction_gird:data_x
+                        }
+                    )
+
+                    if acc >= low_acc:
+                        low_acc = acc
+                        self.vector_x = data_x
+                        self.vector_y = list(map(list, zip(*data_y)))
 
                     print("step %d , Loss is %f , Acc is %f" % (step,loss,acc))
 
                 if step % Parameter.Model_Refresh_num == 0:
-                    acc = self.Acc.eval(feed_dict=feed)
+                    acc = self.Predict_ACC.eval(
+                        feed_dict={
+                            self.X: data_x,
+                            self.Y: list(map(list, zip(*data_y))),
+                            self.Prediction_gird: data_x
+                        }
+                    )
                     step_list.append(str(step))
                     loss_list.append(loss)
                     acc_list.append(acc*100)
 
                     yield step_list, loss_list, acc_list
+
+            # 保存向量
+            with open(PreDefine.Model_path2["SVM"] + '/vector_data', "wb") as f:
+                pk.dump(self.vector_x, f)
+                pk.dump(self.vector_y, f)
 
             Saver.save(self.sess, PreDefine.Model_path2["SVM"] + '/SVM', global_step=step)
 
@@ -439,14 +551,20 @@ class DNN:
 
             self.Layer5 = tf.nn.relu(tf.matmul(self.Layer4, self.W5) + self.B5)
 
+            self.W6 = tf.Variable(
+                tf.truncated_normal(shape=PreDefine.W_shape["DNN6"], stddev=PreDefine.Normal_variable))
+            self.B6 = tf.Variable(tf.constant(value=PreDefine.B_varibale, shape=PreDefine.B_shape["DNN6"]))
+
+            self.Layer6 = tf.matmul(self.Layer5, self.W6) + self.B6
+
             # 交叉熵损失函数
-            self.Loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=self.Y, logits=self.Layer5))
+            self.Loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(labels=self.Y, logits=self.Layer6))
 
             # 梯度下降优化
             self.Train_op = tf.train.AdamOptimizer(PreDefine.Learning_rate["DNN"]).minimize(self.Loss)
 
             # 准确率
-            self.Acc = tf.reduce_mean(tf.cast(tf.equal(tf.argmax(self.Y, 1), tf.argmax(self.Layer5, 1)), 'float'))
+            self.Acc = tf.reduce_mean(tf.cast(tf.equal(tf.argmax(self.Y, 1), tf.argmax(self.Layer6, 1)), 'float'))
 
     # 评估统计
     def test_ACC(self, test_data, low_score):
@@ -558,7 +676,8 @@ class DNN:
                     self.Y: [y_data[i]]
                 }
 
-                result.append(np.argmax(self.sess.run(self.Layer5, feed_dict=feed)))
+                print(self.sess.run(self.Layer6, feed_dict=feed))
+                result.append(np.argmax(self.sess.run(self.Layer6, feed_dict=feed)))
                 truly.append(np.argmax(y_data[i]))
 
         return [result, truly]
@@ -614,6 +733,7 @@ class DNN:
 
                     yield step_list, loss_list, acc_list
 
+            print("Train acc is " + str(self.Acc.eval(feed_dict={self.X: Batch.Data_X, self.Y: Batch.Data_Y})))
             Saver.save(self.sess, PreDefine.Model_path2["DNN"] + '/DNN', global_step=step)
 
 
