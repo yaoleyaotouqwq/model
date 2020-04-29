@@ -8,19 +8,34 @@ Db = {
     "Password":"123456"
 }
 
+Table_Name =  ["score_data","xapi"]
+
 Sql_word = {
-    "Score_calculate":["SELECT 考题一, 考题二, 考题三, 考题四, 考题五, 考题六, 考题七 ,考题八 FROM `score_data` where 学号=",
+    "score_data":["SELECT 考题一, 考题二, 考题三, 考题四, 考题五, 考题六, 考题七 ,考题八 FROM `score_data` where 学号=",
                        "SELECT SPOC单元测验1, SPOC单元测验2, SPOC单元测验3, SPOC单元测验4, SPOC单元测验5,SPOC单元测验6, SPOC单元测验7,SPOC单元测验8 FROM `score_data`",
                        "SELECT 课堂测试1, 课堂测试2, 课堂测试3, 课堂测试4, 课堂测试5 FROM `score_data` where 学号=",
                        "SELECT SPOC单元测验1, SPOC单元测验2, SPOC单元测验3, SPOC单元测验4, SPOC单元测验5,SPOC单元测验6, SPOC单元测验7,SPOC单元测验8 FROM `score_data` where 学号=",
-                       ]
+                       ],
+    "xapi":[
+        "SELECT 举手次数,访问过的资源,查看公告次数,讨论次数 FROM `xapi`",
+        "SELECT 举手次数,访问过的资源,查看公告次数,讨论次数 FROM `xapi` where 学号=",
+        "SELECT 家长回答调查,家长学校满意度,学生缺勤日 FROM `xapi` where 学号="
+    ]
 }
 
 # 划定有效的数据区间
 Score_data_num = {
-    "score_start":3,
-    "variety":28,
-    "Score_calculate":[8,8,5]
+    "score_data":{
+        "score_start":3,
+        "variety":28,
+        "Score_calculate":[8,8,5]
+    },
+    "xapi":
+    {
+        "score_start":2,
+        "variety":19,
+        "Score_calculate":[4,3]
+    }
 }
 
 identity = {
@@ -72,7 +87,8 @@ Button_size = {
 Text_label = {
     "Login":{
         "account":"账号:",
-        "password":"密码:"
+        "password":"密码:",
+        "table_name":"数据表"
     },
     "Create":{
         "account":"账号:",
@@ -153,10 +169,13 @@ Search_Name = "学号"
 
 TableView_Name = "分数表"
 
-Tablefield_Name = ["序号" , "学号" ,  "考场座位号",
+Tablefield_Name = {
+    "0":["序号" , "学号" ,  "考场座位号",
                    "考题一", "考题二", "考题三", "考题四", "考题五", "考题六", "考题七" ,"考题八","卷面成绩",
                    "SPOC单元测验1" , "SPOC单元测验2","SPOC单元测验3","SPOC单元测验4","SPOC单元测验5","SPOC单元测验6","SPOC单元测验7","SPOC单元测验8","SPOC测验总成绩","SPOC讨论","SPOC考试",
-                    "课堂测试1","课堂测试2","课堂测试3","课堂测试4","课堂测试5"]
+                    "课堂测试1","课堂测试2","课堂测试3","课堂测试4","课堂测试5"],
+    "1":["序号" , "学号" , "性别","国籍","出生地","教育阶段","年级","节ID","课程主题","学年学期","家长负责","举手次数","访问过的资源","查看公告次数","讨论次数","家长回答调查","家长学校满意度","学生缺勤日","学生分数等级"]
+}
 
 TableView_account_index = 1
 
@@ -173,18 +192,29 @@ Layout_Stretch = {
         "Button":[2,2]
     }
 }
+
 Visual_Graph = {
     "Graph_Name":["学号","数据图","图表选项","训练过程","评估过程","评估总结"],
     "Columns_Name":["算法","分数区间","训练步数","损失值","准确率(%)","评估集","平均分"],
     "Algorithm_Name":["LR","SVM","DNN"],
-    "Student_func":["考题得分占比","SPOC单元测试对比","课堂测试对比"],
+    "Student_func":["考题得分占比","SPOC单元测试对比","课堂测试情况"],
+    "xapi_Student_func":["学习次数对比","家长意见及学生签到"],
     "Func_name":["考题饼图","SPOC折线图","课堂测试雷达图","训练损失值","训练准确率","评估准确率（K折交叉检验）","算法评估均分"],
     "Func_data_name":[(3,11),(12,20),(23,28)],
+    "xapi_Func_name":["学习情况次数","家长意见以及学生签到情况"],
+    "xapi_Func_data_name":[(11,15),(15,18)],
     "Line_name":["本用户分数线","最低分数线","最高分数线","LR_LOSS","LR_ACC","SVM_LOSS","SVM_ACC","DNN_LOSS","DNN_ACC"],
     "Line_model_name_index":[[3,4],[5,6],[7,8]],
+    "xapi_Line_name":["本用户学习次数折线","最低次数折线","最高次数折线"],
     "Line_x_rotate":330,
     "Radar_name":"课堂测试分数",
     "Radar_space":[0,100],
+    "xapi_Radar_name":{
+        "家长回答调查":"家长回答调查",
+        "家长学校满意度":"家长学校满意度",
+        "学生缺勤日":"学生缺勤七次以上"
+    },
+    "xapi_Radar_space":[0,1],
     "Bar_Name":["成绩预测情况"],
     "Value_type":["预测分数","真实分数"],
     # 行，列，占用行数，占用列数(左下角)

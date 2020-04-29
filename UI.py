@@ -25,11 +25,6 @@ class MainWindow(QMainWindow):
         # super() 调用父类(超类)的一个方法。
         super().__init__(*args , **kwargs)
 
-        # 三个模型
-        self.model_LR = Model.LR()
-        self.model_SVM = Model.SVM()
-        self.model_DNN = Model.DNN()
-
         # 建立线程来处理耗时操作
         self.thread = Thread(self)
 
@@ -53,6 +48,8 @@ class MainWindow(QMainWindow):
 
         # 接受信号选择不同的客户端
         self.dialog.login_sendmsg.connect(self.get_slot)
+        # 接受信号选择不同的数据表
+        self.dialog.table_sendmsg.connect(self.get_table)
         # 接受信号进入切换Tips的html
         self.thread.signal_model_tips.connect(self.Html_tips)
         # 接受信号进入训练图模式
@@ -81,36 +78,78 @@ class MainWindow(QMainWindow):
         # 断开数据库连接
         self.db.close()
 
-    def initialize_table(self):
-        self.table_model.setTable('score_data')
-        self.table_model.setHeaderData(0, Qt.Horizontal, Parameter.Tablefield_Name[0])
-        self.table_model.setHeaderData(1, Qt.Horizontal, Parameter.Tablefield_Name[1])
-        self.table_model.setHeaderData(2, Qt.Horizontal, Parameter.Tablefield_Name[2])
-        self.table_model.setHeaderData(3, Qt.Horizontal, Parameter.Tablefield_Name[3])
-        self.table_model.setHeaderData(4, Qt.Horizontal, Parameter.Tablefield_Name[4])
-        self.table_model.setHeaderData(5, Qt.Horizontal, Parameter.Tablefield_Name[5])
-        self.table_model.setHeaderData(6, Qt.Horizontal, Parameter.Tablefield_Name[6])
-        self.table_model.setHeaderData(7, Qt.Horizontal, Parameter.Tablefield_Name[7])
-        self.table_model.setHeaderData(8, Qt.Horizontal, Parameter.Tablefield_Name[8])
-        self.table_model.setHeaderData(9, Qt.Horizontal, Parameter.Tablefield_Name[9])
-        self.table_model.setHeaderData(10, Qt.Horizontal, Parameter.Tablefield_Name[10])
-        self.table_model.setHeaderData(11, Qt.Horizontal, Parameter.Tablefield_Name[11])
-        self.table_model.setHeaderData(12, Qt.Horizontal, Parameter.Tablefield_Name[12])
-        self.table_model.setHeaderData(13, Qt.Horizontal, Parameter.Tablefield_Name[13])
-        self.table_model.setHeaderData(14, Qt.Horizontal, Parameter.Tablefield_Name[14])
-        self.table_model.setHeaderData(15, Qt.Horizontal, Parameter.Tablefield_Name[15])
-        self.table_model.setHeaderData(16, Qt.Horizontal, Parameter.Tablefield_Name[16])
-        self.table_model.setHeaderData(17, Qt.Horizontal, Parameter.Tablefield_Name[17])
-        self.table_model.setHeaderData(18, Qt.Horizontal, Parameter.Tablefield_Name[18])
-        self.table_model.setHeaderData(19, Qt.Horizontal, Parameter.Tablefield_Name[19])
-        self.table_model.setHeaderData(20, Qt.Horizontal, Parameter.Tablefield_Name[20])
-        self.table_model.setHeaderData(21, Qt.Horizontal, Parameter.Tablefield_Name[21])
-        self.table_model.setHeaderData(22, Qt.Horizontal, Parameter.Tablefield_Name[22])
-        self.table_model.setHeaderData(23, Qt.Horizontal, Parameter.Tablefield_Name[23])
-        self.table_model.setHeaderData(24, Qt.Horizontal, Parameter.Tablefield_Name[24])
-        self.table_model.setHeaderData(25, Qt.Horizontal, Parameter.Tablefield_Name[25])
-        self.table_model.setHeaderData(26, Qt.Horizontal, Parameter.Tablefield_Name[26])
-        self.table_model.setHeaderData(27, Qt.Horizontal, Parameter.Tablefield_Name[27])
+    def initialize_table(self,table_name):
+        # 确立用户表
+        self.table_name = table_name
+
+        # 实例化三个模型
+        self.model_LR = Model.LR(self.table_name)
+        self.model_SVM = Model.SVM(self.table_name)
+        self.model_DNN = Model.DNN(self.table_name)
+
+        if self.table_name == Parameter.Table_Name[1]:
+            self.table_model.setTable(Parameter.Table_Name[1])
+            self.table_model.setHeaderData(0, Qt.Horizontal, Parameter.Tablefield_Name["1"][0])
+            self.table_model.setHeaderData(1, Qt.Horizontal, Parameter.Tablefield_Name["1"][1])
+            self.table_model.setHeaderData(2, Qt.Horizontal, Parameter.Tablefield_Name["1"][2])
+            self.table_model.setHeaderData(3, Qt.Horizontal, Parameter.Tablefield_Name["1"][3])
+            self.table_model.setHeaderData(4, Qt.Horizontal, Parameter.Tablefield_Name["1"][4])
+            self.table_model.setHeaderData(5, Qt.Horizontal, Parameter.Tablefield_Name["1"][5])
+            self.table_model.setHeaderData(6, Qt.Horizontal, Parameter.Tablefield_Name["1"][6])
+            self.table_model.setHeaderData(7, Qt.Horizontal, Parameter.Tablefield_Name["1"][7])
+            self.table_model.setHeaderData(8, Qt.Horizontal, Parameter.Tablefield_Name["1"][8])
+            self.table_model.setHeaderData(9, Qt.Horizontal, Parameter.Tablefield_Name["1"][9])
+            self.table_model.setHeaderData(10, Qt.Horizontal, Parameter.Tablefield_Name["1"][10])
+            self.table_model.setHeaderData(11, Qt.Horizontal, Parameter.Tablefield_Name["1"][11])
+            self.table_model.setHeaderData(12, Qt.Horizontal, Parameter.Tablefield_Name["1"][12])
+            self.table_model.setHeaderData(13, Qt.Horizontal, Parameter.Tablefield_Name["1"][13])
+            self.table_model.setHeaderData(14, Qt.Horizontal, Parameter.Tablefield_Name["1"][14])
+            self.table_model.setHeaderData(15, Qt.Horizontal, Parameter.Tablefield_Name["1"][15])
+            self.table_model.setHeaderData(16, Qt.Horizontal, Parameter.Tablefield_Name["1"][16])
+            self.table_model.setHeaderData(17, Qt.Horizontal, Parameter.Tablefield_Name["1"][17])
+            self.table_model.setHeaderData(18, Qt.Horizontal, Parameter.Tablefield_Name["1"][18])
+
+        elif self.table_name == Parameter.Table_Name[0]:
+            self.table_model.setTable(Parameter.Table_Name[0])
+            self.table_model.setHeaderData(0, Qt.Horizontal, Parameter.Tablefield_Name["0"][0])
+            self.table_model.setHeaderData(1, Qt.Horizontal, Parameter.Tablefield_Name["0"][1])
+            self.table_model.setHeaderData(2, Qt.Horizontal, Parameter.Tablefield_Name["0"][2])
+            self.table_model.setHeaderData(3, Qt.Horizontal, Parameter.Tablefield_Name["0"][3])
+            self.table_model.setHeaderData(4, Qt.Horizontal, Parameter.Tablefield_Name["0"][4])
+            self.table_model.setHeaderData(5, Qt.Horizontal, Parameter.Tablefield_Name["0"][5])
+            self.table_model.setHeaderData(6, Qt.Horizontal, Parameter.Tablefield_Name["0"][6])
+            self.table_model.setHeaderData(7, Qt.Horizontal, Parameter.Tablefield_Name["0"][7])
+            self.table_model.setHeaderData(8, Qt.Horizontal, Parameter.Tablefield_Name["0"][8])
+            self.table_model.setHeaderData(9, Qt.Horizontal, Parameter.Tablefield_Name["0"][9])
+            self.table_model.setHeaderData(10, Qt.Horizontal, Parameter.Tablefield_Name["0"][10])
+            self.table_model.setHeaderData(11, Qt.Horizontal, Parameter.Tablefield_Name["0"][11])
+            self.table_model.setHeaderData(12, Qt.Horizontal, Parameter.Tablefield_Name["0"][12])
+            self.table_model.setHeaderData(13, Qt.Horizontal, Parameter.Tablefield_Name["0"][13])
+            self.table_model.setHeaderData(14, Qt.Horizontal, Parameter.Tablefield_Name["0"][14])
+            self.table_model.setHeaderData(15, Qt.Horizontal, Parameter.Tablefield_Name["0"][15])
+            self.table_model.setHeaderData(16, Qt.Horizontal, Parameter.Tablefield_Name["0"][16])
+            self.table_model.setHeaderData(17, Qt.Horizontal, Parameter.Tablefield_Name["0"][17])
+            self.table_model.setHeaderData(18, Qt.Horizontal, Parameter.Tablefield_Name["0"][18])
+            self.table_model.setHeaderData(19, Qt.Horizontal, Parameter.Tablefield_Name["0"][19])
+            self.table_model.setHeaderData(20, Qt.Horizontal, Parameter.Tablefield_Name["0"][20])
+            self.table_model.setHeaderData(21, Qt.Horizontal, Parameter.Tablefield_Name["0"][21])
+            self.table_model.setHeaderData(22, Qt.Horizontal, Parameter.Tablefield_Name["0"][22])
+            self.table_model.setHeaderData(23, Qt.Horizontal, Parameter.Tablefield_Name["0"][23])
+            self.table_model.setHeaderData(24, Qt.Horizontal, Parameter.Tablefield_Name["0"][24])
+            self.table_model.setHeaderData(25, Qt.Horizontal, Parameter.Tablefield_Name["0"][25])
+            self.table_model.setHeaderData(26, Qt.Horizontal, Parameter.Tablefield_Name["0"][26])
+            self.table_model.setHeaderData(27, Qt.Horizontal, Parameter.Tablefield_Name["0"][27])
+
+        self.table_view.setModel(self.table_model)
+        self.table_view.setWindowTitle(Parameter.TableView_Name)
+        # 隐藏列头
+        self.table_view.verticalHeader().hide()
+        # 监听鼠标点击事件
+        self.table_view.doubleClicked.connect(self.doubleClicked)
+
+        # 防止选择客户端后还未设置好表，所以再次抽取数据，可用线程阻塞优化
+        if self.identity == Parameter.identity["Teacher"]:
+            self.table_model.select()
 
     def mainwindow_layout(self):
 
@@ -121,9 +160,6 @@ class MainWindow(QMainWindow):
 
         # self.setObjectName("table_view")
         # self.setStyleSheet("#table_view{border-image:url(Image/main_window.jpg);}")
-
-        # 初始化数据表
-        self.initialize_table()
 
         # 建立分割窗口和各类小控件
         self.main_widget = QWidget(self)
@@ -157,12 +193,6 @@ class MainWindow(QMainWindow):
 
         # 表视图(仅学生和教师用户可用)
         self.table_view = QTableView()
-        self.table_view.setModel(self.table_model)
-        self.table_view.setWindowTitle(Parameter.TableView_Name)
-        # 隐藏列头
-        self.table_view.verticalHeader().hide()
-        # 监听鼠标点击事件
-        self.table_view.doubleClicked.connect(self.doubleClicked)
 
         # 模型运行结果页面(仅管理员可用)
         # 可视化图形
@@ -193,6 +223,10 @@ class MainWindow(QMainWindow):
 
         # 显示所有数据or展示数据图or评估模型
         self.button4.clicked.connect(self.func3)
+
+    def get_table(self,table_name):
+        # 初始化数据表
+        self.initialize_table(table_name)
 
     def doubleClicked(self):
         # 教师专用功能
@@ -257,18 +291,20 @@ class MainWindow(QMainWindow):
             self.Model_mode = Model_Parameter.Model_mode[0]
             msgBox = QMessageBox()
             datas = []
-            id = 0
-            sql_word = "SELECT * FROM `score_data`"
+            id= 0
+
+            sql_word = "SELECT * FROM "+"`"+ str(self.table_name)+"`"
             self.query.exec_(sql_word)
             while self.query.next():
                 datas.append([str(self.query.value(temp), encoding="utf-8")
-                         for temp in range(Parameter.Score_data_num["score_start"],
-                                           Parameter.Score_data_num["variety"])])
+                         for temp in range(Parameter.Score_data_num[str(self.table_name)]["score_start"],
+                                           Parameter.Score_data_num[str(self.table_name)]["variety"])])
+                # 获取最大的数据序号
                 id = self.query.value(0)
 
             # 暂定每个模型的batch_size都一样，只有训练集大于一个batch_size才能进行训练
-            if len(datas) >= Model_Parameter.Batch_size['LR']:
-                with open(Model_Parameter.id_path, 'wb') as f:
+            if len(datas) >= Model_Parameter.Batch_size[str(self.table_name)]['LR']:
+                with open(Model_Parameter.id_path[self.table_name], 'wb') as f:
                     pickle.dump(int(id), f)
 
                 # 等待线程结束任务再进行处理
@@ -295,21 +331,21 @@ class MainWindow(QMainWindow):
 
             msgBox = QMessageBox()
             datas = []
-            f = open(Model_Parameter.id_path, 'rb')
+            f = open(Model_Parameter.id_path[self.table_name], 'rb')
             id = pickle.load(f)
 
-            # sql_word = "SELECT * FROM `score_data`"  #测试继续训练是否可用
-            sql_word = "SELECT * FROM `score_data` where 序号 > '" + str(id) + "'"
+            sql_word = "SELECT * FROM "+"`"+ str(self.table_name)+"`"  #测试继续训练是否可用
+            # sql_word = "SELECT * FROM "+"`"+ str(self.table_name)+"`" + "where 序号 > '" + str(id) + "'"
             if self.query.exec_(sql_word):
                 while self.query.next():
                     datas.append([str(self.query.value(temp), encoding="utf-8")
-                                  for temp in range(Parameter.Score_data_num["score_start"],
-                                                    Parameter.Score_data_num["variety"])])
+                                  for temp in range(Parameter.Score_data_num[self.table_name]["score_start"],
+                                                    Parameter.Score_data_num[self.table_name]["variety"])])
                     id = self.query.value(0)
 
                     # 暂定每个模型的batch_size都一样，只有新的训练集大于一个batch_size才能继续进行训练
-                if len(datas) >= Model_Parameter.Batch_size['LR']:
-                    with open(Model_Parameter.id_path, 'wb') as f:
+                if len(datas) >= Model_Parameter.Batch_size[self.table_name]['LR']:
+                    with open(Model_Parameter.id_path[self.table_name], 'wb') as f:
                         pickle.dump(int(id), f)
 
                     # 等待线程结束任务再进行处理
@@ -337,12 +373,15 @@ class MainWindow(QMainWindow):
 
     def func3(self):
         if self.identity == Parameter.identity["Teacher"]:
-            self.table_model.setTable('score_data')
+            # 查询所有数据
+            self.table_model.setTable(self.table_name)
             self.table_model.select()
+
         elif self.identity == Parameter.identity["Student"]:
 
             msgBox = QMessageBox()
-            sql_word = "SELECT * FROM `score_data` where 学号='" + self.user_id + "'"
+
+            sql_word = "SELECT * FROM "+"`"+self.table_name+"`"+" where 学号='" + self.user_id + "'"
 
             # 账号信息判断
             if self.query.exec_(sql_word) and self.query.next():
@@ -368,17 +407,17 @@ class MainWindow(QMainWindow):
             msgBox = QMessageBox()
             datas = []
             id = 0
-            sql_word = "SELECT * FROM `score_data`"
+            sql_word = "SELECT * FROM "+"`"+ str(self.table_name)+"`"
             self.query.exec_(sql_word)
             while self.query.next():
                 datas.append([str(self.query.value(temp), encoding="utf-8")
-                              for temp in range(Parameter.Score_data_num["score_start"],
-                                                Parameter.Score_data_num["variety"])])
+                              for temp in range(Parameter.Score_data_num[self.table_name]["score_start"],
+                                                Parameter.Score_data_num[self.table_name]["variety"])])
                 id = self.query.value(0)
 
             # 暂定每个模型的batch_size都一样，只有训练集大于一个batch_size才能进行训练
-            if len(datas)//Model_Parameter.Test_K_num >= Model_Parameter.Batch_size['LR']:
-                with open(Model_Parameter.id_path, 'wb') as f:
+            if len(datas)//Model_Parameter.Test_K_num[self.table_name] >= Model_Parameter.Batch_size[self.table_name]['LR']:
+                with open(Model_Parameter.id_path[self.table_name], 'wb') as f:
                     pickle.dump(int(id), f)
 
                 # 等待线程结束任务再进行处理
@@ -870,12 +909,17 @@ class Predict(QDialog):
     def general_graph(self,data_list,account):
 
         # 更改Graph的Y轴显示,该回调无法从其他文件获取数据只能将常量定义在函数内
-        def change_data(data):
+        def change_data_score_data(data):
             score_space = ["0-5", "5-10", "10-15", "15-20", "20-25", "25-30","30-35", "35-40",
                      "40-45", "45-50", "50-55", "55-60","60-65", "65-70", "70-75",
                      "75-80", "80-85", "85-90","90-95", "95-100"]
             return score_space[data]
 
+        def change_data_xapi(data):
+            score_space = ["0-69", "70-89", "90-100"]
+            return score_space[data]
+
+        # 学生用户每次调用需要清空
         if self.Main_win.identity == Parameter.identity["Student"]:
             # 先清空文件夹
             if os.path.exists(Model_Parameter.Echarts_path):
@@ -898,18 +942,32 @@ class Predict(QDialog):
                 predict_data.append(temp[0][0])
                 truly_data.append(temp[1][0])
 
-            bar.add(Parameter.Visual_Graph["Value_type"][0], Parameter.Visual_Graph["Algorithm_Name"], predict_data,
-                    xaxis_name=Parameter.Visual_Graph["Columns_Name"][0],
-                    yaxis_name=Parameter.Visual_Graph["Columns_Name"][1],
-                    yaxis_name_gap=Parameter.Visual_Graph["Y_gap"],
-                    is_more_utils=True,
-                    yaxis_formatter = change_data)
-            bar.add(Parameter.Visual_Graph["Value_type"][1], Parameter.Visual_Graph["Algorithm_Name"], truly_data,
-                    xaxis_name=Parameter.Visual_Graph["Columns_Name"][0],
-                    yaxis_name=Parameter.Visual_Graph["Columns_Name"][1],
-                    yaxis_name_gap = Parameter.Visual_Graph["Y_gap"],
-                    is_more_utils=True,
-                    yaxis_formatter = change_data)
+            if self.Main_win.table_name == Parameter.Table_Name[0]:
+                bar.add(Parameter.Visual_Graph["Value_type"][0], Parameter.Visual_Graph["Algorithm_Name"], predict_data,
+                        xaxis_name=Parameter.Visual_Graph["Columns_Name"][0],
+                        yaxis_name=Parameter.Visual_Graph["Columns_Name"][1],
+                        yaxis_name_gap=Parameter.Visual_Graph["Y_gap"],
+                        is_more_utils=True,
+                        yaxis_formatter = change_data_score_data)
+                bar.add(Parameter.Visual_Graph["Value_type"][1], Parameter.Visual_Graph["Algorithm_Name"], truly_data,
+                        xaxis_name=Parameter.Visual_Graph["Columns_Name"][0],
+                        yaxis_name=Parameter.Visual_Graph["Columns_Name"][1],
+                        yaxis_name_gap = Parameter.Visual_Graph["Y_gap"],
+                        is_more_utils=True,
+                        yaxis_formatter = change_data_score_data)
+            elif self.Main_win.table_name == Parameter.Table_Name[1]:
+                bar.add(Parameter.Visual_Graph["Value_type"][0], Parameter.Visual_Graph["Algorithm_Name"], predict_data,
+                        xaxis_name=Parameter.Visual_Graph["Columns_Name"][0],
+                        yaxis_name=Parameter.Visual_Graph["Columns_Name"][1],
+                        yaxis_name_gap=Parameter.Visual_Graph["Y_gap"],
+                        is_more_utils=True,
+                        yaxis_formatter = change_data_xapi)
+                bar.add(Parameter.Visual_Graph["Value_type"][1], Parameter.Visual_Graph["Algorithm_Name"], truly_data,
+                        xaxis_name=Parameter.Visual_Graph["Columns_Name"][0],
+                        yaxis_name=Parameter.Visual_Graph["Columns_Name"][1],
+                        yaxis_name_gap = Parameter.Visual_Graph["Y_gap"],
+                        is_more_utils=True,
+                        yaxis_formatter = change_data_xapi)
 
             bar.render(Model_Parameter.Echarts_path + account + ".html")
 
@@ -935,18 +993,34 @@ class Predict(QDialog):
                     predict_data.append(temp2[0][temp1])
                     truly_data.append(temp2[1][temp1])
 
-                bar.add(Parameter.Visual_Graph["Value_type"][0], Parameter.Visual_Graph["Algorithm_Name"], predict_data,
-                        xaxis_name=Parameter.Visual_Graph["Columns_Name"][0],
-                        yaxis_name=Parameter.Visual_Graph["Columns_Name"][1],
-                        yaxis_name_gap=Parameter.Visual_Graph["Y_gap"],
-                        is_more_utils=True,
-                        yaxis_formatter = change_data)
-                bar.add(Parameter.Visual_Graph["Value_type"][1], Parameter.Visual_Graph["Algorithm_Name"], truly_data,
-                        xaxis_name=Parameter.Visual_Graph["Columns_Name"][0],
-                        yaxis_name=Parameter.Visual_Graph["Columns_Name"][1],
-                        yaxis_name_gap=Parameter.Visual_Graph["Y_gap"],
-                        is_more_utils=True,
-                        yaxis_formatter = change_data)
+                if self.Main_win.table_name == Parameter.Table_Name[0]:
+                    bar.add(Parameter.Visual_Graph["Value_type"][0], Parameter.Visual_Graph["Algorithm_Name"], predict_data,
+                            xaxis_name=Parameter.Visual_Graph["Columns_Name"][0],
+                            yaxis_name=Parameter.Visual_Graph["Columns_Name"][1],
+                            yaxis_name_gap=Parameter.Visual_Graph["Y_gap"],
+                            is_more_utils=True,
+                            yaxis_formatter = change_data_score_data)
+                    bar.add(Parameter.Visual_Graph["Value_type"][1], Parameter.Visual_Graph["Algorithm_Name"], truly_data,
+                            xaxis_name=Parameter.Visual_Graph["Columns_Name"][0],
+                            yaxis_name=Parameter.Visual_Graph["Columns_Name"][1],
+                            yaxis_name_gap=Parameter.Visual_Graph["Y_gap"],
+                            is_more_utils=True,
+                            yaxis_formatter = change_data_score_data)
+                elif self.Main_win.table_name == Parameter.Table_Name[1]:
+                    bar.add(Parameter.Visual_Graph["Value_type"][0], Parameter.Visual_Graph["Algorithm_Name"],
+                            predict_data,
+                            xaxis_name=Parameter.Visual_Graph["Columns_Name"][0],
+                            yaxis_name=Parameter.Visual_Graph["Columns_Name"][1],
+                            yaxis_name_gap=Parameter.Visual_Graph["Y_gap"],
+                            is_more_utils=True,
+                            yaxis_formatter=change_data_xapi)
+                    bar.add(Parameter.Visual_Graph["Value_type"][1], Parameter.Visual_Graph["Algorithm_Name"],
+                            truly_data,
+                            xaxis_name=Parameter.Visual_Graph["Columns_Name"][0],
+                            yaxis_name=Parameter.Visual_Graph["Columns_Name"][1],
+                            yaxis_name_gap=Parameter.Visual_Graph["Y_gap"],
+                            is_more_utils=True,
+                            yaxis_formatter=change_data_xapi)
 
                 bar.render(Model_Parameter.Echarts_path + account[temp1] + ".html")
 
@@ -967,36 +1041,52 @@ class Predict(QDialog):
         if isinstance(account, list):
             datas = []
             for temp in account:
-                sql_word = "SELECT * FROM `score_data` where 学号 ='" + temp + "' and 卷面成绩 = ''"
+                if self.Main_win.table_name == Parameter.Table_Name[0]:
+                    sql_word = "SELECT * FROM "+"`"+self.Main_win.table_name+"`"+" where 学号 ='" + temp + "' and 卷面成绩 = ''"
+                elif self.Main_win.table_name == Parameter.Table_Name[1]:
+                    sql_word = "SELECT * FROM " + "`" + self.Main_win.table_name + "`" + " where 学号 ='" + temp + "' and 学生分数等级 = ''"
+
                 # 账号密码信息判断,用exec执行sql，用next判断是否成功
                 if self.query.exec_(sql_word) and self.query.next():
                     datas.append([str(self.query.value(temp), encoding="utf-8")
-                         for temp in range(Parameter.Score_data_num["score_start"],
-                                           Parameter.Score_data_num["variety"])])
+                         for temp in range(Parameter.Score_data_num[self.Main_win.table_name]["score_start"],
+                                           Parameter.Score_data_num[self.Main_win.table_name]["variety"])])
                 else:
-                    sql_word = "SELECT * FROM `score_data` where 学号 ='" + temp + "'"
+                    if self.Main_win.table_name == Parameter.Table_Name[0]:
+                        sql_word = "SELECT * FROM " + "`" + self.Main_win.table_name + "`" + " where 学号 ='" + temp + "'"
+                    elif self.Main_win.table_name == Parameter.Table_Name[1]:
+                        sql_word = "SELECT * FROM " + "`" + self.Main_win.table_name + "`" + " where 学号 ='" + temp + "'"
+
                     if self.query.exec_(sql_word) and self.query.next():
                         datas.append([str(self.query.value(temp), encoding="utf-8")
-                                 for temp in range(Parameter.Score_data_num["score_start"],
-                                                   Parameter.Score_data_num["variety"])])
+                                 for temp in range(Parameter.Score_data_num[self.Main_win.table_name]["score_start"],
+                                                   Parameter.Score_data_num[self.Main_win.table_name]["variety"])])
                     else:
                         msgBox.warning(self, Parameter.Message_tips["Windows_title"],
                                        Parameter.Message_tips["Search Failed"], QMessageBox.Ok)
                         self.cancel_click()
 
         else:
-            sql_word = "SELECT * FROM `score_data` where 学号 ='" + account + "' and 卷面成绩 = ''"
+            if self.Main_win.table_name == Parameter.Table_Name[0]:
+                sql_word = "SELECT * FROM " + "`" + self.Main_win.table_name + "`" + " where 学号 ='" + account + "' and 卷面成绩 = ''"
+            elif self.Main_win.table_name == Parameter.Table_Name[1]:
+                sql_word = "SELECT * FROM " + "`" + self.Main_win.table_name + "`" + " where 学号 ='" + account + "' and 学生分数等级 = ''"
+
             # 账号密码信息判断,用exec执行sql，用next判断是否成功
             if self.query.exec_(sql_word) and self.query.next():
                 datas = ([str(self.query.value(temp), encoding="utf-8")
-                              for temp in range(Parameter.Score_data_num["score_start"],
-                                                Parameter.Score_data_num["variety"])])
+                              for temp in range(Parameter.Score_data_num[self.Main_win.table_name]["score_start"],
+                                                Parameter.Score_data_num[self.Main_win.table_name]["variety"])])
             else:
-                sql_word = "SELECT * FROM `score_data` where 学号 ='" + account + "'"
+                if self.Main_win.table_name == Parameter.Table_Name[0]:
+                    sql_word = "SELECT * FROM "+"`"+self.Main_win.table_name+"`"+" where 学号 ='" + account + "'"
+                elif self.Main_win.table_name == Parameter.Table_Name[1]:
+                    sql_word = "SELECT * FROM " + "`" + self.Main_win.table_name + "`" + " where 学号 ='" + account + "'"
+
                 if self.query.exec_(sql_word) and self.query.next():
                     datas = [str(self.query.value(temp), encoding="utf-8")
-                                  for temp in range(Parameter.Score_data_num["score_start"],
-                                                    Parameter.Score_data_num["variety"])]
+                                  for temp in range(Parameter.Score_data_num[self.Main_win.table_name]["score_start"],
+                                                    Parameter.Score_data_num[self.Main_win.table_name]["variety"])]
                 else:
                     msgBox.warning(self, Parameter.Message_tips["Windows_title"],
                                    Parameter.Message_tips["Search Failed"], QMessageBox.Ok)
@@ -1008,6 +1098,7 @@ class Predict(QDialog):
         SVM_result = self.Main_win.model_SVM.SVM_prediction(datas)
         DNN_result = self.Main_win.model_DNN.DNN_prediction(datas)
 
+        print(LR_result, SVM_result,DNN_result)
         # 生成图表
         self.general_graph([LR_result,SVM_result,DNN_result],account)
 
@@ -1123,7 +1214,7 @@ class Search_dialog(QDialog):
         self.Main_win.table_model.setFilter((Parameter.Search_Name + " = '%s'"%(self.lineEdit_account.text())))
         self.Main_win.table_model.select()
 
-        sql_word = "SELECT 卷面成绩 FROM `score_data` where 学号='" + self.lineEdit_account.text() + "'"
+        sql_word = "SELECT * FROM "+"`" +self.Main_win.table_name+ "`"+" where 学号='" + self.lineEdit_account.text() + "'"
 
         # 账号信息判断,由权限决定查询开关，用exec执行sql，用next判断是否成功
         if self.Main_win.identity == Parameter.identity["Teacher"] or self.Main_win.user_id == self.lineEdit_account.text():
@@ -1283,6 +1374,7 @@ class Create_dialog(QDialog):
 class Login_dialog(QDialog):
 
     login_sendmsg = pyqtSignal(str)
+    table_sendmsg = pyqtSignal(str)
 
     # *args是非关键字参数，用于元组，**kwargs是关键字参数 （字典）
     def __init__(self, *args, **kwargs):
@@ -1309,6 +1401,7 @@ class Login_dialog(QDialog):
         self.level_Layout1 = QHBoxLayout()
         self.level_Layout2 = QHBoxLayout()
         self.level_Layout3 = QHBoxLayout()
+        self.level_Layout4 = QHBoxLayout()
 
         # 单行文本
         self.account_text = QLabel(Parameter.Text_label["Login"]["account"])
@@ -1319,6 +1412,14 @@ class Login_dialog(QDialog):
         self.lineEdit_password = QLineEdit()
         self.lineEdit_account.setPlaceholderText(Parameter.Text_tips["Login"]["account"])
         self.lineEdit_password.setPlaceholderText(Parameter.Text_tips["Login"]["password"])
+
+        # 下拉选择提示：
+        self.table_name = QLabel(Parameter.Text_label["Login"]["table_name"])
+        # 下拉选择框
+        self.choose_table = QComboBox()
+        # 将身份选择添加到下拉框
+        for temp in Parameter.Table_Name:
+            self.choose_table.addItem(temp)
 
         #按钮框
         self.enter_butten = QPushButton()
@@ -1333,13 +1434,16 @@ class Login_dialog(QDialog):
         self.level_Layout1.addWidget(self.lineEdit_account)
         self.level_Layout2.addWidget(self.password_text)
         self.level_Layout2.addWidget(self.lineEdit_password)
-        self.level_Layout3.addWidget(self.enter_butten)
-        self.level_Layout3.addWidget(self.cancel_butten)
-        self.level_Layout3.addWidget(self.create_butten)
+        self.level_Layout3.addWidget(self.table_name)
+        self.level_Layout3.addWidget(self.choose_table)
+        self.level_Layout4.addWidget(self.enter_butten)
+        self.level_Layout4.addWidget(self.cancel_butten)
+        self.level_Layout4.addWidget(self.create_butten)
         # 水平布局控件加入垂直布局
         self.verticalLayout.addLayout(self.level_Layout1)
         self.verticalLayout.addLayout(self.level_Layout2)
         self.verticalLayout.addLayout(self.level_Layout3)
+        self.verticalLayout.addLayout(self.level_Layout4)
 
         # 处理按钮信号
         self.enter_butten.clicked.connect(self.entet_click)
@@ -1362,6 +1466,8 @@ class Login_dialog(QDialog):
 
             # 传递用户身份
             self.login_sendmsg.emit(str(query.value(0), encoding="utf-8"))
+            # 传递用户身份
+            self.table_sendmsg.emit(self.choose_table.currentText())
             # 把登录界面隐藏
             self.setVisible(False)
 
@@ -1513,126 +1619,227 @@ class Echarts(QDialog):
             # 数据项
             datas = []
 
-            # 实现饼图计算构建
-            self.Main_win.query.exec_(Parameter.Sql_word["Score_calculate"][0]+"'"+self.Main_win.user_id+"'")
-            while self.Main_win.query.next():
-                datas.append([ 0. if str(self.Main_win.query.value(temp), encoding="utf-8") == "" else
-                               float(str(self.Main_win.query.value(temp), encoding="utf-8"))
-                               for temp in range(Parameter.Score_data_num["Score_calculate"][0])])
+            if self.Main_win.table_name == Parameter.Table_Name[0]:
+                # 实现饼图计算构建
+                self.Main_win.query.exec_(Parameter.Sql_word[self.Main_win.table_name][0]+"'"+self.Main_win.user_id+"'")
+                while self.Main_win.query.next():
+                    datas.append([ 0. if str(self.Main_win.query.value(temp), encoding="utf-8") == "" else
+                                   float(str(self.Main_win.query.value(temp), encoding="utf-8"))
+                                   for temp in range(Parameter.Score_data_num[self.Main_win.table_name]["Score_calculate"][0])])
 
-            self.Calcul_data_lsit.append(datas[0])
-            datas = []
+                self.Calcul_data_lsit.append(datas[0])
+                datas = []
 
-            # 实现折线图计算构建
-            # 先进行全库数据的收集
-            self.Main_win.query.exec_(Parameter.Sql_word["Score_calculate"][1])
-            while self.Main_win.query.next():
-                datas.append([0. if str(self.Main_win.query.value(temp), encoding="utf-8") == "" else
-                              float(str(self.Main_win.query.value(temp), encoding="utf-8"))
-                              for temp in range(Parameter.Score_data_num["Score_calculate"][1])])
+                # 实现折线图计算构建
+                # 先进行全库数据的收集
+                self.Main_win.query.exec_(Parameter.Sql_word[self.Main_win.table_name][1])
+                while self.Main_win.query.next():
+                    datas.append([0. if str(self.Main_win.query.value(temp), encoding="utf-8") == "" else
+                                  float(str(self.Main_win.query.value(temp), encoding="utf-8"))
+                                  for temp in range(Parameter.Score_data_num[self.Main_win.table_name]["Score_calculate"][1])])
 
-            max_data = []
-            min_data = []
+                max_data = []
+                min_data = []
 
-            for temp in range(len(datas[0])):
-                data_temp = sorted(datas, key=lambda a: a[temp])
-                max_data.append(data_temp[len(datas) - 1][temp])
-                min_data.append(data_temp[0][temp])
+                for temp in range(len(datas[0])):
+                    data_temp = sorted(datas, key=lambda a: a[temp])
+                    max_data.append(data_temp[len(datas) - 1][temp])
+                    min_data.append(data_temp[0][temp])
 
-            datas = []
+                datas = []
 
-            # 接着进行本用户的数据定位
-            self.Main_win.query.exec_(Parameter.Sql_word["Score_calculate"][3] + "'" + self.Main_win.user_id + "'")
-            while self.Main_win.query.next():
-                datas.append([0. if str(self.Main_win.query.value(temp), encoding="utf-8") == "" else
-                              float(str(self.Main_win.query.value(temp), encoding="utf-8"))
-                              for temp in range(Parameter.Score_data_num["Score_calculate"][1])])
+                # 接着进行本用户的数据定位
+                self.Main_win.query.exec_(Parameter.Sql_word[self.Main_win.table_name][3] + "'" + self.Main_win.user_id + "'")
+                while self.Main_win.query.next():
+                    datas.append([0. if str(self.Main_win.query.value(temp), encoding="utf-8") == "" else
+                                  float(str(self.Main_win.query.value(temp), encoding="utf-8"))
+                                  for temp in range(Parameter.Score_data_num[self.Main_win.table_name]["Score_calculate"][1])])
 
-            self.Calcul_data_lsit.append([datas[0],min_data,max_data])
+                self.Calcul_data_lsit.append([datas[0],min_data,max_data])
 
-            datas = []
+                datas = []
 
-            # 实现雷达图计算构建
-            self.Main_win.query.exec_(Parameter.Sql_word["Score_calculate"][2] + "'" + self.Main_win.user_id + "'")
-            while self.Main_win.query.next():
-                # 课堂成绩存在等级和分数的转换
-                for temp in range(Parameter.Score_data_num["Score_calculate"][2]):
-                    string_temp = str(self.Main_win.query.value(temp), encoding="utf-8")
-                    if string_temp == "":
-                        datas.append(0.)
-                    else:
-                        if temp == Data_change.Score_dict["index"]:
-                            datas.append(float(Data_change.Score_dict[string_temp]))
+                # 实现雷达图计算构建
+                self.Main_win.query.exec_(Parameter.Sql_word[self.Main_win.table_name][2] + "'" + self.Main_win.user_id + "'")
+                while self.Main_win.query.next():
+                    # 课堂成绩存在等级和分数的转换
+                    for temp in range(Parameter.Score_data_num[self.Main_win.table_name]["Score_calculate"][2]):
+                        string_temp = str(self.Main_win.query.value(temp), encoding="utf-8")
+                        if string_temp == "":
+                            datas.append(0.)
                         else:
-                            datas.append(float(string_temp))
+                            if temp == Data_change.Score_dict["index"]:
+                                datas.append(float(Data_change.Score_dict[string_temp]))
+                            else:
+                                datas.append(float(string_temp))
 
-            self.Calcul_data_lsit.append([datas])
+                self.Calcul_data_lsit.append([datas])
 
-            # 保存饼图每块的名称
-            self.pie_item_name = []
-            for temp in range(Parameter.Visual_Graph["Func_data_name"][0][0],Parameter.Visual_Graph["Func_data_name"][0][1]):
-                self.pie_item_name.append(Parameter.Tablefield_Name[temp])
+                # 保存饼图每块的名称
+                self.pie_item_name = []
+                for temp in range(Parameter.Visual_Graph["Func_data_name"][0][0],Parameter.Visual_Graph["Func_data_name"][0][1]):
+                    self.pie_item_name.append(Parameter.Tablefield_Name["0"][temp])
 
-            # 保存折线图坐标轴值的名称
-            self.line_item_name = []
-            for temp in range(Parameter.Visual_Graph["Func_data_name"][1][0],
-                              Parameter.Visual_Graph["Func_data_name"][1][1]):
-                self.line_item_name.append(Parameter.Tablefield_Name[temp])
+                # 保存折线图坐标轴值的名称
+                self.line_item_name = []
+                for temp in range(Parameter.Visual_Graph["Func_data_name"][1][0],
+                                  Parameter.Visual_Graph["Func_data_name"][1][1]):
+                    self.line_item_name.append(Parameter.Tablefield_Name["0"][temp])
 
-            # 保存雷达图各维度的名称
-            self.radar_item_name = []
-            for temp in range(Parameter.Visual_Graph["Func_data_name"][2][0],
-                              Parameter.Visual_Graph["Func_data_name"][2][1]):
-                self.radar_item_name.append(
-                    {
-                        "name":Parameter.Tablefield_Name[temp],
-                        "max":Parameter.Visual_Graph["Radar_space"][1],
-                        "min":Parameter.Visual_Graph["Radar_space"][0]
-                    }
-                )
+                # 保存雷达图各维度的名称
+                self.radar_item_name = []
+                for temp in range(Parameter.Visual_Graph["Func_data_name"][2][0],
+                                  Parameter.Visual_Graph["Func_data_name"][2][1]):
+                    self.radar_item_name.append(
+                        {
+                            "name":Parameter.Tablefield_Name["0"][temp],
+                            "max":Parameter.Visual_Graph["Radar_space"][1],
+                            "min":Parameter.Visual_Graph["Radar_space"][0]
+                        }
+                    )
+            elif self.Main_win.table_name == Parameter.Table_Name[1]:
+                # 实现折线图计算构建
+                # 先进行全库数据的收集
+                self.Main_win.query.exec_(Parameter.Sql_word[self.Main_win.table_name][0])
+                while self.Main_win.query.next():
+                    datas.append([0. if str(self.Main_win.query.value(temp), encoding="utf-8") == "" else
+                                  float(str(self.Main_win.query.value(temp), encoding="utf-8"))
+                                  for temp in
+                                  range(Parameter.Score_data_num[self.Main_win.table_name]["Score_calculate"][0])])
 
+                max_data = []
+                min_data = []
 
-        # 构造饼图
-        pie = Pie(Parameter.Visual_Graph["Func_name"][0],self.Main_win.user_id)
-        pie.add(self.Main_win.user_id,self.pie_item_name,self.Calcul_data_lsit[0],
-                is_label_show=True,
-                is_more_utils=True
-        )
-        pie.render(path=Model_Parameter.Echarts_path + Parameter.Visual_Graph["Func_name"][0] + ".html")
+                for temp in range(len(datas[0])):
+                    data_temp = sorted(datas, key=lambda a: a[temp])
+                    max_data.append(data_temp[len(datas) - 1][temp])
+                    min_data.append(data_temp[0][temp])
 
-        # 构造折线图
-        line = Line(Parameter.Visual_Graph["Func_name"][1],self.Main_win.user_id)
-        line.add(Parameter.Visual_Graph["Line_name"][0], self.line_item_name, self.Calcul_data_lsit[1][0],
-                 xaxis_rotate=Parameter.Visual_Graph["Line_x_rotate"],
-                 is_label_show=True)
-        line.add(Parameter.Visual_Graph["Line_name"][1], self.line_item_name, self.Calcul_data_lsit[1][1],
-                 xaxis_rotate=Parameter.Visual_Graph["Line_x_rotate"],
-                 is_label_show=True)
-        line.add(Parameter.Visual_Graph["Line_name"][2], self.line_item_name, self.Calcul_data_lsit[1][2],
-                 xaxis_rotate=Parameter.Visual_Graph["Line_x_rotate"],
-                 is_label_show=True)
-        line.render(path=Model_Parameter.Echarts_path + Parameter.Visual_Graph["Func_name"][1] + ".html")
+                datas = []
 
-        # 构造雷达图
-        radar = Radar(Parameter.Visual_Graph["Func_name"][1], self.Main_win.user_id)
-        radar.config(c_schema=self.radar_item_name)
-        radar.add(Parameter.Visual_Graph["Radar_name"], self.Calcul_data_lsit[2])
+                # 接着进行本用户的数据定位
+                self.Main_win.query.exec_(
+                    Parameter.Sql_word[self.Main_win.table_name][1] + "'" + self.Main_win.user_id + "'")
+                while self.Main_win.query.next():
+                    datas.append([0. if str(self.Main_win.query.value(temp), encoding="utf-8") == "" else
+                                  float(str(self.Main_win.query.value(temp), encoding="utf-8"))
+                                  for temp in
+                                  range(Parameter.Score_data_num[self.Main_win.table_name]["Score_calculate"][0])])
 
-        radar.render(path=Model_Parameter.Echarts_path + Parameter.Visual_Graph["Func_name"][2] + ".html")
+                self.Calcul_data_lsit.append([datas[0], min_data, max_data])
 
-        #  在Echarts中建立item功能项
-        item = QListWidgetItem()
-        item.setText(Parameter.Visual_Graph["Student_func"][0])
-        self.listwidget.addItem(item)
-        item = QListWidgetItem()
-        item.setText(Parameter.Visual_Graph["Student_func"][1])
-        self.listwidget.addItem(item)
-        item = QListWidgetItem()
-        item.setText(Parameter.Visual_Graph["Student_func"][2])
-        self.listwidget.addItem(item)
+                datas = []
 
-        # 展现数据图
-        self.Print_Graph([Parameter.Visual_Graph["Func_name"][0],Parameter.Visual_Graph["Func_name"][1],Parameter.Visual_Graph["Func_name"][2]])
+                # 实现雷达图计算构建
+                self.Main_win.query.exec_(
+                    Parameter.Sql_word[self.Main_win.table_name][2] + "'" + self.Main_win.user_id + "'")
+                while self.Main_win.query.next():
+                    # 数据转换
+                    for temp in range(Parameter.Score_data_num[self.Main_win.table_name]["Score_calculate"][1]):
+                        string_temp = str(self.Main_win.query.value(temp), encoding="utf-8")
+                        if string_temp == "":
+                            datas.append(0.)
+                        else:
+                            if temp == 0:
+                                datas.append(float(Data_change.Data_value_change[self.Main_win.table_name]["家长回答调查"][string_temp]))
+                            elif temp == 1:
+                                datas.append(float(Data_change.Data_value_change[self.Main_win.table_name]["家长学校满意度"][string_temp]))
+                            else:
+                                datas.append(float(Data_change.Data_value_change[self.Main_win.table_name]["学生缺勤日"][string_temp]))
+
+                self.Calcul_data_lsit.append([datas])
+
+                # 保存折线图坐标轴值的名称
+                self.line_item_name = []
+                for temp in range(Parameter.Visual_Graph["xapi_Func_data_name"][0][0],
+                                  Parameter.Visual_Graph["xapi_Func_data_name"][0][1]):
+                    self.line_item_name.append(Parameter.Tablefield_Name["1"][temp])
+
+                # 保存雷达图各维度的名称
+                self.radar_item_name = []
+                for temp in range(Parameter.Visual_Graph["xapi_Func_data_name"][1][0],
+                                  Parameter.Visual_Graph["xapi_Func_data_name"][1][1]):
+                    self.radar_item_name.append(
+                        {
+                            "name": Parameter.Visual_Graph["xapi_Radar_name"][Parameter.Tablefield_Name["1"][temp]],
+                            "max": Parameter.Visual_Graph["xapi_Radar_space"][1],
+                            "min": Parameter.Visual_Graph["xapi_Radar_space"][0]
+                        }
+                    )
+
+        if self.Main_win.table_name == Parameter.Table_Name[0]:
+            # 构造饼图
+            pie = Pie(Parameter.Visual_Graph["Func_name"][0],self.Main_win.user_id)
+            pie.add(self.Main_win.user_id,self.pie_item_name,self.Calcul_data_lsit[0],
+                    is_label_show=True,
+                    is_more_utils=True
+            )
+            pie.render(path=Model_Parameter.Echarts_path + Parameter.Visual_Graph["Func_name"][0] + ".html")
+
+            # 构造折线图
+            line = Line(Parameter.Visual_Graph["Func_name"][1],self.Main_win.user_id)
+            line.add(Parameter.Visual_Graph["Line_name"][0], self.line_item_name, self.Calcul_data_lsit[1][0],
+                     xaxis_rotate=Parameter.Visual_Graph["Line_x_rotate"],
+                     is_label_show=True)
+            line.add(Parameter.Visual_Graph["Line_name"][1], self.line_item_name, self.Calcul_data_lsit[1][1],
+                     xaxis_rotate=Parameter.Visual_Graph["Line_x_rotate"],
+                     is_label_show=True)
+            line.add(Parameter.Visual_Graph["Line_name"][2], self.line_item_name, self.Calcul_data_lsit[1][2],
+                     xaxis_rotate=Parameter.Visual_Graph["Line_x_rotate"],
+                     is_label_show=True)
+            line.render(path=Model_Parameter.Echarts_path + Parameter.Visual_Graph["Func_name"][1] + ".html")
+
+            # 构造雷达图
+            radar = Radar(Parameter.Visual_Graph["Func_name"][2], self.Main_win.user_id)
+            radar.config(c_schema=self.radar_item_name)
+            radar.add(Parameter.Visual_Graph["Radar_name"], self.Calcul_data_lsit[2])
+
+            radar.render(path=Model_Parameter.Echarts_path + Parameter.Visual_Graph["Func_name"][2] + ".html")
+
+            #  在Echarts中建立item功能项
+            item = QListWidgetItem()
+            item.setText(Parameter.Visual_Graph["Student_func"][0])
+            self.listwidget.addItem(item)
+            item = QListWidgetItem()
+            item.setText(Parameter.Visual_Graph["Student_func"][1])
+            self.listwidget.addItem(item)
+            item = QListWidgetItem()
+            item.setText(Parameter.Visual_Graph["Student_func"][2])
+            self.listwidget.addItem(item)
+
+            # 展现数据图
+            self.Print_Graph([Parameter.Visual_Graph["Func_name"][0],Parameter.Visual_Graph["Func_name"][1],Parameter.Visual_Graph["Func_name"][2]])
+        elif self.Main_win.table_name == Parameter.Table_Name[1]:
+            # 构造折线图
+            line = Line(Parameter.Visual_Graph["xapi_Func_name"][0], self.Main_win.user_id)
+            line.add(Parameter.Visual_Graph["xapi_Line_name"][0], self.line_item_name, self.Calcul_data_lsit[0][0],
+                     xaxis_rotate=Parameter.Visual_Graph["Line_x_rotate"],
+                     is_label_show=True)
+            line.add(Parameter.Visual_Graph["xapi_Line_name"][1], self.line_item_name, self.Calcul_data_lsit[0][1],
+                     xaxis_rotate=Parameter.Visual_Graph["Line_x_rotate"],
+                     is_label_show=True)
+            line.add(Parameter.Visual_Graph["xapi_Line_name"][2], self.line_item_name, self.Calcul_data_lsit[0][2],
+                     xaxis_rotate=Parameter.Visual_Graph["Line_x_rotate"],
+                     is_label_show=True)
+            line.render(path=Model_Parameter.Echarts_path + Parameter.Visual_Graph["xapi_Func_name"][0] + ".html")
+
+            # 构造雷达图
+            radar = Radar(Parameter.Visual_Graph["xapi_Func_name"][1], self.Main_win.user_id)
+            radar.config(c_schema=self.radar_item_name)
+            radar.add(Parameter.Visual_Graph["xapi_Func_name"][1], self.Calcul_data_lsit[1])
+
+            radar.render(path=Model_Parameter.Echarts_path + Parameter.Visual_Graph["xapi_Func_name"][1] + ".html")
+
+            #  在Echarts中建立item功能项
+            item = QListWidgetItem()
+            item.setText(Parameter.Visual_Graph["xapi_Student_func"][0])
+            self.listwidget.addItem(item)
+            item = QListWidgetItem()
+            item.setText(Parameter.Visual_Graph["xapi_Student_func"][1])
+            self.listwidget.addItem(item)
+
+            # 展现数据图
+            self.Print_Graph([Parameter.Visual_Graph["xapi_Func_name"][0], Parameter.Visual_Graph["xapi_Func_name"][1]])
 
     def Print_Graph(self,func):
 

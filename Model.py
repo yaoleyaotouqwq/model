@@ -8,15 +8,15 @@ import os
 import numpy as np
 
 class LR:
-    def __init__(self):
-
+    def __init__(self,table_name):
+        self.table_name = table_name
         self.Graph = tf.Graph()
         with self.Graph.as_default():
-            self.X = tf.placeholder(dtype=tf.float32, shape=PreDefine.X_shape["LR"])
-            self.Y = tf.placeholder(dtype=tf.float32, shape=PreDefine.Y_shape["LR"])
+            self.X = tf.placeholder(dtype=tf.float32, shape=PreDefine.X_shape["LR"][self.table_name])
+            self.Y = tf.placeholder(dtype=tf.float32, shape=PreDefine.Y_shape["LR"][self.table_name])
             self.W = tf.Variable(
-                tf.truncated_normal(shape=PreDefine.W_shape["LR"], stddev=PreDefine.Normal_variable))
-            self.B = tf.Variable(tf.constant(value=PreDefine.B_varibale, shape=PreDefine.B_shape["LR"]))
+                tf.truncated_normal(shape=PreDefine.W_shape["LR"][self.table_name], stddev=PreDefine.Normal_variable[self.table_name]))
+            self.B = tf.Variable(tf.constant(value=PreDefine.B_varibale[self.table_name], shape=PreDefine.B_shape["LR"][self.table_name]))
 
             # with tf.name_scope("Result"):
             # 采用softmax实现逻辑回归的多分类
@@ -24,7 +24,7 @@ class LR:
             # with tf.name_scope("Loss"):
             self.Loss = tf.reduce_mean(tf.reduce_sum(-self.Y*tf.log(self.Result), reduction_indices=1))
             # with tf.name_scope("Train_op"):
-            self.Train_op = tf.train.GradientDescentOptimizer(PreDefine.Learning_rate["LR"]).minimize(self.Loss)
+            self.Train_op = tf.train.GradientDescentOptimizer(PreDefine.Learning_rate["LR"][self.table_name]).minimize(self.Loss)
             # with tf.name_scope("Accuracy"):
             self.Acc = tf.reduce_mean(tf.cast(tf.equal(tf.argmax(self.Y, 1), tf.argmax(self.Result, 1)), 'float'))
         # 用来显示标量信息
@@ -35,7 +35,7 @@ class LR:
     def test_ACC(self,test_data,low_score):
         with tf.Session(graph=self.Graph) as self.sess:
             tf.global_variables_initializer().run()
-            Batch = Batches.Load_Batch(test_data)
+            Batch = Batches.Load_Batch(test_data,self.table_name)
 
             # 将数据细分出来
             train_x = Batch.Data_X['train_x_scaler_data']
@@ -46,9 +46,9 @@ class LR:
             loss = 0
             acc = 0
 
-            for step in range(PreDefine.Train_step["LR"]):
+            for step in range(PreDefine.Train_step["LR"][self.table_name]):
                 batches = Batch.get_batch(train_x, train_y,
-                                          PreDefine.Batch_size["LR"])
+                                          PreDefine.Batch_size[self.table_name]["LR"])
                 batch_times = 0
                 for data_x,data_y in batches:
 
@@ -75,7 +75,7 @@ class LR:
                 low_score = new_score
                 # 保存训练的模型，low_score用来保存最优模型
                 Saver = tf.train.Saver()
-                Saver.save(self.sess,PreDefine.Model_path2["LR"]+'/LR',global_step=step)
+                Saver.save(self.sess,PreDefine.Model_path2["LR"][self.table_name]+'/LR',global_step=step)
 
         return low_score,new_score
 
@@ -84,9 +84,9 @@ class LR:
 
         # 重新训练
         # 清空原训练模型文件
-        if os.path.exists(PreDefine.Model_path1['LR']):
-            for file in os.listdir(PreDefine.Model_path1['LR']):
-                os.remove(os.path.join(os.getcwd(), PreDefine.Model_path1['LR'] + file))
+        if os.path.exists(PreDefine.Model_path1['LR'][self.table_name]):
+            for file in os.listdir(PreDefine.Model_path1['LR'][self.table_name]):
+                os.remove(os.path.join(os.getcwd(), PreDefine.Model_path1['LR'][self.table_name] + file))
 
         Test_data = {
             "data":data,
@@ -105,7 +105,7 @@ class LR:
         new_score_list = []
         average_score_list = []
 
-        for temp in range(PreDefine.Test_K_num):
+        for temp in range(PreDefine.Test_K_num[self.table_name]):
             Test_data["times"] = times
             # new_score为每个模型的分数
             low_score,new_score = self.test_ACC(Test_data,low_score)
@@ -114,7 +114,7 @@ class LR:
 
             times_list.append(str(times))
             new_score_list.append(new_score*100)
-            average_score_list.append(acc_score/PreDefine.Test_K_num)
+            average_score_list.append(acc_score/PreDefine.Test_K_num[self.table_name])
             yield times_list,new_score_list,average_score_list
 
     def LR_prediction(self,score_data):
@@ -128,8 +128,8 @@ class LR:
 
             Saver = tf.train.Saver()
             # 恢复模型
-            Saver.restore(self.sess, tf.train.latest_checkpoint(PreDefine.Model_path2["LR"]))
-            x_data, y_data = data_process.data_process(score_data)
+            Saver.restore(self.sess, tf.train.latest_checkpoint(PreDefine.Model_path2["LR"][self.table_name]))
+            x_data, y_data = data_process.data_process(score_data,self.table_name)
 
             data_len = len(x_data)
 
@@ -167,19 +167,19 @@ class LR:
             # 初次或重新训练
             if model_mode == PreDefine.Model_mode[0]:
                 # 清空原训练模型文件
-                if os.path.exists(PreDefine.Model_path1['LR']):
-                    for file in os.listdir(PreDefine.Model_path1['LR']):
-                        os.remove(os.path.join(os.getcwd(), PreDefine.Model_path1['LR'] + file))
+                if os.path.exists(PreDefine.Model_path1['LR'][self.table_name]):
+                    for file in os.listdir(PreDefine.Model_path1['LR'][self.table_name]):
+                        os.remove(os.path.join(os.getcwd(), PreDefine.Model_path1['LR'][self.table_name] + file))
 
             else:
                 # 恢复模型继续训练
-                Saver.restore(self.sess, tf.train.latest_checkpoint(PreDefine.Model_path2["LR"]))
+                Saver.restore(self.sess, tf.train.latest_checkpoint(PreDefine.Model_path2["LR"][self.table_name]))
 
-            Batch = Batches.Load_Batch(score_data)
+            Batch = Batches.Load_Batch(score_data,self.table_name)
 
-            for step in range(PreDefine.Train_step["LR"]):
+            for step in range(PreDefine.Train_step["LR"][self.table_name]):
                 batches = Batch.get_batch(Batch.Data_X, Batch.Data_Y,
-                                          PreDefine.Batch_size["LR"])
+                                          PreDefine.Batch_size[self.table_name]["LR"])
                 batch_times = 0
                 for data_x,data_y in batches:
 
@@ -211,24 +211,25 @@ class LR:
 
                     yield step_list, loss_list, acc_list
 
-            print("Train acc is "+ str(self.Acc.eval(feed_dict={self.X:Batch.Data_X,self.Y:Batch.Data_Y})))
-            Saver.save(self.sess,PreDefine.Model_path2["LR"]+'/LR',global_step=step)
+            print("LR model train acc is "+ str(self.Acc.eval(feed_dict={self.X:Batch.Data_X,self.Y:Batch.Data_Y})))
+            Saver.save(self.sess,PreDefine.Model_path2["LR"][self.table_name]+'/LR',global_step=step)
 
 
 class SVM:
 
-    def __init__(self):
+    def __init__(self,table_name):
+        self.table_name = table_name
         self.Graph = tf.Graph()
         with self.Graph.as_default():
-            self.X = tf.placeholder(dtype=tf.float32, shape=PreDefine.X_shape["SVM"])
-            self.Y = tf.placeholder(dtype=tf.float32, shape=PreDefine.Y_shape["SVM"])
-            self.Prediction_gird = tf.placeholder(shape=PreDefine.SVM_prediction_gird_shape,dtype=tf.float32)
-            self.B = tf.Variable(tf.truncated_normal(shape=PreDefine.B_shape["SVM"], stddev=PreDefine.Normal_variable))
+            self.X = tf.placeholder(dtype=tf.float32, shape=PreDefine.X_shape["SVM"][self.table_name])
+            self.Y = tf.placeholder(dtype=tf.float32, shape=PreDefine.Y_shape["SVM"][self.table_name])
+            self.Prediction_gird = tf.placeholder(shape=PreDefine.X_shape["SVM"][self.table_name],dtype=tf.float32)
+            self.B = tf.Variable(tf.truncated_normal(shape=PreDefine.B_shape["SVM"][self.table_name], stddev=PreDefine.Normal_variable[self.table_name]))
 
             # 径向基函数（RBF）,将线性不可分问题转化到高纬度的线性可分
             # 公式为k = exp{- ||x-xc||^2/(2*σ^2) }
             # 缩放比例,通常取值0.01、0.1、1、10、100，相当于公式的 -1/2*σ^2
-            self.Gamma = tf.constant(PreDefine.RBF["Gamma"])
+            self.Gamma = tf.constant(PreDefine.RBF["Gamma"][self.table_name])
             self.Dist = tf.reshape(tf.reduce_sum(tf.square(self.X),1),[-1,1])
             self.Norm = tf.add(
                 tf.subtract(
@@ -279,18 +280,18 @@ class SVM:
             self.Predict_ACC = tf.reduce_mean(tf.cast(tf.equal(self.Predict_result, tf.argmax(self.Y, 0)), tf.float32))
 
             # 梯度下降优化
-            self.Train_op = tf.train.GradientDescentOptimizer(PreDefine.Learning_rate["SVM"]).minimize(self.Loss)
+            self.Train_op = tf.train.GradientDescentOptimizer(PreDefine.Learning_rate["SVM"][self.table_name]).minimize(self.Loss)
 
     def reshape_matmul(self, data):
         data1 = tf.expand_dims(data, 1)
-        data2 = tf.reshape(data1, [PreDefine.Class_num, PreDefine.Batch_size["SVM"], 1])
+        data2 = tf.reshape(data1, [PreDefine.Class_num[self.table_name], PreDefine.Batch_size[self.table_name]["SVM"], 1])
         return tf.matmul(data2, data1)
 
     # 评估统计
     def test_ACC(self, test_data, low_score):
         with tf.Session(graph=self.Graph) as self.sess:
             tf.global_variables_initializer().run()
-            Batch = Batches.Load_Batch(test_data)
+            Batch = Batches.Load_Batch(test_data,self.table_name)
 
             # 将数据细分出来
             train_x = Batch.Data_X['train_x_scaler_data']
@@ -303,9 +304,9 @@ class SVM:
             # 记录最低训练分
             low_acc = 0
 
-            for step in range(PreDefine.Train_step["SVM"]):
+            for step in range(PreDefine.Train_step["SVM"][self.table_name]):
                 batches = Batch.get_batch(train_x, train_y,
-                                          PreDefine.Batch_size["SVM"])
+                                          PreDefine.Batch_size[self.table_name]["SVM"])
                 batch_times = 0
                 for data_x, data_y in batches:
                     feed = {
@@ -358,13 +359,13 @@ class SVM:
                 low_score = new_score
 
                 # 保存向量
-                with open(PreDefine.Model_path2["SVM"] + '/vector_data', "wb") as f:
+                with open(PreDefine.Model_path2["SVM"][self.table_name] + '/vector_data', "wb") as f:
                     pk.dump(self.vector_x, f)
                     pk.dump(self.vector_y, f)
 
                 # 保存训练的模型
                 Saver = tf.train.Saver()
-                Saver.save(self.sess, PreDefine.Model_path2["SVM"] + '/SVM', global_step=step)
+                Saver.save(self.sess, PreDefine.Model_path2["SVM"][self.table_name] + '/SVM', global_step=step)
 
         return low_score, new_score
 
@@ -374,9 +375,9 @@ class SVM:
 
         # 重新训练
         # 清空原训练模型文件
-        if os.path.exists(PreDefine.Model_path1['SVM']):
-            for file in os.listdir(PreDefine.Model_path1['SVM']):
-                os.remove(os.path.join(os.getcwd(), PreDefine.Model_path1['SVM'] + file))
+        if os.path.exists(PreDefine.Model_path1['SVM'][self.table_name]):
+            for file in os.listdir(PreDefine.Model_path1['SVM'][self.table_name]):
+                os.remove(os.path.join(os.getcwd(), PreDefine.Model_path1['SVM'][self.table_name] + file))
 
         Test_data = {
             "data": data,
@@ -395,7 +396,7 @@ class SVM:
         new_score_list = []
         average_score_list = []
 
-        for temp in range(PreDefine.Test_K_num):
+        for temp in range(PreDefine.Test_K_num[self.table_name]):
             Test_data["times"] = times
             # new_score为每个模型的分数
             low_score, new_score = self.test_ACC(Test_data, low_score)
@@ -405,7 +406,7 @@ class SVM:
 
             times_list.append(str(times))
             new_score_list.append(new_score*100)
-            average_score_list.append(acc_score / PreDefine.Test_K_num)
+            average_score_list.append(acc_score / PreDefine.Test_K_num[self.table_name])
             yield times_list, new_score_list, average_score_list
 
     def SVM_prediction(self,score_data):
@@ -419,11 +420,11 @@ class SVM:
 
             Saver = tf.train.Saver()
             # 恢复模型
-            Saver.restore(self.sess, tf.train.latest_checkpoint(PreDefine.Model_path2["SVM"]))
-            x_data, y_data = data_process.data_process(score_data)
+            Saver.restore(self.sess, tf.train.latest_checkpoint(PreDefine.Model_path2["SVM"][self.table_name]))
+            x_data, y_data = data_process.data_process(score_data,self.table_name)
 
             # 读取向量
-            with open(PreDefine.Model_path2["SVM"] + '/vector_data', "rb") as f:
+            with open(PreDefine.Model_path2["SVM"][self.table_name] + '/vector_data', "rb") as f:
                 self.vector_x = pk.load(f)
                 self.vector_y = pk.load(f)
 
@@ -436,7 +437,7 @@ class SVM:
                     self.Prediction_gird:[x_data[i]]
                 }
                 print(self.sess.run(self.Predict_output, feed_dict=feed))
-                result.append(self.sess.run(tf.argmax(self.Predict_output,0), feed_dict=feed)[0])
+                result.append(self.sess.run(tf.argmax(self.Predict_output-self.Predict_output/PreDefine.Batch_size[self.table_name]["SVM"],0), feed_dict=feed)[0])
                 truly.append(np.argmax(y_data[i]))
 
         return [result, truly]
@@ -456,23 +457,23 @@ class SVM:
             # 初次或重新训练
             if model_mode == PreDefine.Model_mode[0]:
                 # 清空原训练模型文件
-                if os.path.exists(PreDefine.Model_path1['SVM']):
-                    for file in os.listdir(PreDefine.Model_path1['SVM']):
-                        os.remove(os.path.join(os.getcwd(), PreDefine.Model_path1['SVM'] + file))
+                if os.path.exists(PreDefine.Model_path1['SVM'][self.table_name]):
+                    for file in os.listdir(PreDefine.Model_path1['SVM'][self.table_name]):
+                        os.remove(os.path.join(os.getcwd(), PreDefine.Model_path1['SVM'][self.table_name] + file))
 
             # 继续训练
             else:
                 # 恢复模型
-                Saver.restore(self.sess, tf.train.latest_checkpoint(PreDefine.Model_path2["SVM"]))
+                Saver.restore(self.sess, tf.train.latest_checkpoint(PreDefine.Model_path2["SVM"][self.table_name]))
 
-            Batch = Batches.Load_Batch(score_data)
+            Batch = Batches.Load_Batch(score_data,self.table_name)
 
             # 记录最低训练分
             low_acc = 0
 
-            for step in range(PreDefine.Train_step["SVM"]):
+            for step in range(PreDefine.Train_step["SVM"][self.table_name]):
                 batches = Batch.get_batch(Batch.Data_X, Batch.Data_Y,
-                                          PreDefine.Batch_size["SVM"])
+                                          PreDefine.Batch_size[self.table_name]["SVM"])
                 for data_x, data_y in batches:
                     feed = {
                         self.X: data_x,
@@ -512,48 +513,65 @@ class SVM:
                     yield step_list, loss_list, acc_list
 
             # 保存向量
-            with open(PreDefine.Model_path2["SVM"] + '/vector_data', "wb") as f:
+            with open(PreDefine.Model_path2["SVM"][self.table_name] + '/vector_data', "wb") as f:
                 pk.dump(self.vector_x, f)
                 pk.dump(self.vector_y, f)
 
-            Saver.save(self.sess, PreDefine.Model_path2["SVM"] + '/SVM', global_step=step)
+                result_list = self.Predict_result.eval(
+                    feed_dict={
+                        self.X: self.vector_x,
+                        self.Y: self.vector_y,
+                        self.Prediction_gird: Batch.Data_X
+                    }
+                )
+
+                acc = 0
+                # 比较结果得到准确率
+                for temp1, temp2 in zip(result_list, Batch.Data_Y):
+                    if temp1 == temp2.argmax():
+                        acc += 1
+
+                print("SVM model train acc is " + str(acc / len(Batch.Data_Y)))
+
+            Saver.save(self.sess, PreDefine.Model_path2["SVM"][self.table_name] + '/SVM', global_step=step)
 
 
 class DNN:
-    def __init__(self):
+    def __init__(self,table_name):
+        self.table_name = table_name
         self.Graph = tf.Graph()
         with self.Graph.as_default():
-            self.X = tf.placeholder(dtype=tf.float32, shape=PreDefine.X_shape["DNN"])
-            self.Y = tf.placeholder(dtype=tf.float32, shape=PreDefine.Y_shape["DNN"])
+            self.X = tf.placeholder(dtype=tf.float32, shape=PreDefine.X_shape["DNN"][self.table_name])
+            self.Y = tf.placeholder(dtype=tf.float32, shape=PreDefine.Y_shape["DNN"][self.table_name])
 
-            self.W1 = tf.Variable(tf.truncated_normal(shape=PreDefine.W_shape["DNN1"], stddev=PreDefine.Normal_variable))
-            self.B1 = tf.Variable(tf.constant(value=PreDefine.B_varibale, shape=PreDefine.B_shape["DNN1"]))
+            self.W1 = tf.Variable(tf.truncated_normal(shape=PreDefine.W_shape["DNN1"][self.table_name], stddev=PreDefine.Normal_variable[self.table_name]))
+            self.B1 = tf.Variable(tf.constant(value=PreDefine.B_varibale[self.table_name], shape=PreDefine.B_shape["DNN1"][self.table_name]))
 
             self.Layer1 = tf.nn.relu(tf.matmul(self.X, self.W1) + self.B1)
 
-            self.W2 = tf.Variable(tf.truncated_normal(shape=PreDefine.W_shape["DNN2"], stddev=PreDefine.Normal_variable))
-            self.B2 = tf.Variable(tf.constant(value=PreDefine.B_varibale, shape=PreDefine.B_shape["DNN2"]))
+            self.W2 = tf.Variable(tf.truncated_normal(shape=PreDefine.W_shape["DNN2"][self.table_name], stddev=PreDefine.Normal_variable[self.table_name]))
+            self.B2 = tf.Variable(tf.constant(value=PreDefine.B_varibale[self.table_name], shape=PreDefine.B_shape["DNN2"][self.table_name]))
 
             self.Layer2 = tf.nn.relu(tf.matmul(self.Layer1, self.W2) + self.B2)
 
-            self.W3 = tf.Variable(tf.truncated_normal(shape=PreDefine.W_shape["DNN3"], stddev=PreDefine.Normal_variable))
-            self.B3 = tf.Variable(tf.constant(value=PreDefine.B_varibale, shape=PreDefine.B_shape["DNN3"]))
+            self.W3 = tf.Variable(tf.truncated_normal(shape=PreDefine.W_shape["DNN3"][self.table_name], stddev=PreDefine.Normal_variable[self.table_name]))
+            self.B3 = tf.Variable(tf.constant(value=PreDefine.B_varibale[self.table_name], shape=PreDefine.B_shape["DNN3"][self.table_name]))
 
             self.Layer3 = tf.nn.relu(tf.matmul(self.Layer2, self.W3) + self.B3)
 
-            self.W4 = tf.Variable(tf.truncated_normal(shape=PreDefine.W_shape["DNN4"], stddev=PreDefine.Normal_variable))
-            self.B4 = tf.Variable(tf.constant(value=PreDefine.B_varibale, shape=PreDefine.B_shape["DNN4"]))
+            self.W4 = tf.Variable(tf.truncated_normal(shape=PreDefine.W_shape["DNN4"][self.table_name], stddev=PreDefine.Normal_variable[self.table_name]))
+            self.B4 = tf.Variable(tf.constant(value=PreDefine.B_varibale[self.table_name], shape=PreDefine.B_shape["DNN4"][self.table_name]))
 
             self.Layer4 = tf.nn.relu(tf.matmul(self.Layer3, self.W4) + self.B4)
 
-            self.W5 = tf.Variable(tf.truncated_normal(shape=PreDefine.W_shape["DNN5"], stddev=PreDefine.Normal_variable))
-            self.B5 = tf.Variable(tf.constant(value=PreDefine.B_varibale, shape=PreDefine.B_shape["DNN5"]))
+            self.W5 = tf.Variable(tf.truncated_normal(shape=PreDefine.W_shape["DNN5"][self.table_name], stddev=PreDefine.Normal_variable[self.table_name]))
+            self.B5 = tf.Variable(tf.constant(value=PreDefine.B_varibale[self.table_name], shape=PreDefine.B_shape["DNN5"][self.table_name]))
 
             self.Layer5 = tf.nn.relu(tf.matmul(self.Layer4, self.W5) + self.B5)
 
             self.W6 = tf.Variable(
-                tf.truncated_normal(shape=PreDefine.W_shape["DNN6"], stddev=PreDefine.Normal_variable))
-            self.B6 = tf.Variable(tf.constant(value=PreDefine.B_varibale, shape=PreDefine.B_shape["DNN6"]))
+                tf.truncated_normal(shape=PreDefine.W_shape["DNN6"][self.table_name], stddev=PreDefine.Normal_variable[self.table_name]))
+            self.B6 = tf.Variable(tf.constant(value=PreDefine.B_varibale[self.table_name], shape=PreDefine.B_shape["DNN6"][self.table_name]))
 
             self.Layer6 = tf.matmul(self.Layer5, self.W6) + self.B6
 
@@ -561,7 +579,7 @@ class DNN:
             self.Loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(labels=self.Y, logits=self.Layer6))
 
             # 梯度下降优化
-            self.Train_op = tf.train.AdamOptimizer(PreDefine.Learning_rate["DNN"]).minimize(self.Loss)
+            self.Train_op = tf.train.AdamOptimizer(PreDefine.Learning_rate["DNN"][self.table_name]).minimize(self.Loss)
 
             # 准确率
             self.Acc = tf.reduce_mean(tf.cast(tf.equal(tf.argmax(self.Y, 1), tf.argmax(self.Layer6, 1)), 'float'))
@@ -570,7 +588,7 @@ class DNN:
     def test_ACC(self, test_data, low_score):
         with tf.Session(graph=self.Graph) as self.sess:
             tf.global_variables_initializer().run()
-            Batch = Batches.Load_Batch(test_data)
+            Batch = Batches.Load_Batch(test_data,self.table_name)
 
             # 将数据细分出来
             train_x = Batch.Data_X['train_x_scaler_data']
@@ -581,9 +599,9 @@ class DNN:
             loss = 0
             acc = 0
 
-            for step in range(PreDefine.Train_step["DNN"]):
+            for step in range(PreDefine.Train_step["DNN"][self.table_name]):
                 batches = Batch.get_batch(train_x, train_y,
-                                          PreDefine.Batch_size["DNN"])
+                                          PreDefine.Batch_size[self.table_name]["DNN"])
                 batch_times = 0
                 for data_x, data_y in batches:
                     feed = {
@@ -610,7 +628,7 @@ class DNN:
                 low_score = new_score
                 # 保存训练的模型
                 Saver = tf.train.Saver()
-                Saver.save(self.sess, PreDefine.Model_path2["DNN"] + '/DNN', global_step=step)
+                Saver.save(self.sess, PreDefine.Model_path2["DNN"][self.table_name] + '/DNN', global_step=step)
 
         return low_score, new_score
 
@@ -620,9 +638,9 @@ class DNN:
 
         # 重新训练
         # 清空原训练模型文件
-        if os.path.exists(PreDefine.Model_path1['DNN']):
-            for file in os.listdir(PreDefine.Model_path1['DNN']):
-                os.remove(os.path.join(os.getcwd(), PreDefine.Model_path1['DNN'] + file))
+        if os.path.exists(PreDefine.Model_path1['DNN'][self.table_name]):
+            for file in os.listdir(PreDefine.Model_path1['DNN'][self.table_name]):
+                os.remove(os.path.join(os.getcwd(), PreDefine.Model_path1['DNN'][self.table_name] + file))
 
         Test_data = {
             "data": data,
@@ -641,7 +659,7 @@ class DNN:
         new_score_list = []
         average_score_list = []
 
-        for temp in range(PreDefine.Test_K_num):
+        for temp in range(PreDefine.Test_K_num[self.table_name]):
             Test_data["times"] = times
             # new_score为每个模型的分数
             low_score, new_score = self.test_ACC(Test_data, low_score)
@@ -650,7 +668,7 @@ class DNN:
 
             times_list.append(str(times))
             new_score_list.append(new_score*100)
-            average_score_list.append(acc_score / PreDefine.Test_K_num)
+            average_score_list.append(acc_score / PreDefine.Test_K_num[self.table_name])
             yield times_list, new_score_list, average_score_list
 
     def DNN_prediction(self,score_data):
@@ -665,8 +683,8 @@ class DNN:
 
             Saver = tf.train.Saver()
             # 恢复模型
-            Saver.restore(self.sess, tf.train.latest_checkpoint(PreDefine.Model_path2["DNN"]))
-            x_data, y_data = data_process.data_process(score_data)
+            Saver.restore(self.sess, tf.train.latest_checkpoint(PreDefine.Model_path2["DNN"][self.table_name]))
+            x_data, y_data = data_process.data_process(score_data,self.table_name)
 
             data_len = len(x_data)
 
@@ -697,19 +715,19 @@ class DNN:
             # 初次或重新训练
             if model_mode == PreDefine.Model_mode[0]:
                 # 清空原训练模型文件
-                if os.path.exists(PreDefine.Model_path1['DNN']):
-                    for file in os.listdir(PreDefine.Model_path1['DNN']):
-                        os.remove(os.path.join(os.getcwd(), PreDefine.Model_path1['DNN'] + file))
+                if os.path.exists(PreDefine.Model_path1['DNN'][self.table_name]):
+                    for file in os.listdir(PreDefine.Model_path1['DNN'][self.table_name]):
+                        os.remove(os.path.join(os.getcwd(), PreDefine.Model_path1['DNN'][self.table_name] + file))
 
             else:
                 # 恢复模型继续训练
-                Saver.restore(self.sess, tf.train.latest_checkpoint(PreDefine.Model_path2["DNN"]))
+                Saver.restore(self.sess, tf.train.latest_checkpoint(PreDefine.Model_path2["DNN"][self.table_name]))
 
-            Batch = Batches.Load_Batch(score_data)
+            Batch = Batches.Load_Batch(score_data,self.table_name)
 
-            for step in range(PreDefine.Train_step["DNN"]):
+            for step in range(PreDefine.Train_step["DNN"][self.table_name]):
                 batches = Batch.get_batch(Batch.Data_X, Batch.Data_Y,
-                                          PreDefine.Batch_size["DNN"])
+                                          PreDefine.Batch_size[self.table_name]["DNN"])
                 batch_times = 0
                 for data_x, data_y in batches:
                     feed = {
@@ -733,8 +751,8 @@ class DNN:
 
                     yield step_list, loss_list, acc_list
 
-            print("Train acc is " + str(self.Acc.eval(feed_dict={self.X: Batch.Data_X, self.Y: Batch.Data_Y})))
-            Saver.save(self.sess, PreDefine.Model_path2["DNN"] + '/DNN', global_step=step)
+            print("DNN model train acc is " + str(self.Acc.eval(feed_dict={self.X: Batch.Data_X, self.Y: Batch.Data_Y})))
+            Saver.save(self.sess, PreDefine.Model_path2["DNN"][self.table_name] + '/DNN', global_step=step)
 
 
 if __name__ == '__main__':
