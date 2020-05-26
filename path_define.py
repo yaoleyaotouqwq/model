@@ -6,28 +6,28 @@ Class_num = {
 
 Batch_size = {
     "score_data":{
-        "LR":16,
-        "SVM":16,
-        "DNN":16
+        "LR":32,
+        "SVM":32,
+        "DNN":32
     },
     "xapi":{
-        "LR":16,
-        "SVM":16,
-        "DNN":16
+        "LR":32,
+        "SVM":32,
+        "DNN":32
     }
 }
 
 X_shape = {
     "LR":{
-        "score_data":[None,24],
+        "score_data":[None,23],
         "xapi":[None,16],
     },
     "SVM":{
-        "score_data":[None,24],
+        "score_data":[None,23],
         "xapi":[None,16],
     },
     "DNN":{
-        "score_data":[None,24],
+        "score_data":[None,23],
         "xapi":[None,16],
     }
 }
@@ -49,11 +49,11 @@ Y_shape = {
 
 W_shape = {
     "LR":{
-        "score_data":[24,20],
+        "score_data":[23,20],
         "xapi":[16,3],
     },
     "DNN1":{
-        "score_data":[24,128],
+        "score_data":[23,128],
         "xapi":[16,128],
     },
     "DNN2":{
@@ -65,11 +65,11 @@ W_shape = {
         "xapi":[64,32],
     },
     "DNN4":{
-        "score_data":[32,24],
+        "score_data":[32,23],
         "xapi":[32,16],
     },
     "DNN5":{
-        "score_data":[24,22],
+        "score_data":[23,22],
         "xapi":[16,8],
     },
     "DNN6":{
@@ -105,7 +105,7 @@ B_shape = {
         "xapi":[32],
     },
     "DNN4":{
-        "score_data":[24],
+        "score_data":[23],
         "xapi":[16],
     },
     "DNN5":{
@@ -120,8 +120,8 @@ B_shape = {
 
 RBF = {
     "Gamma":{
-        "score_data":-0.1,
-        "xapi":-0.1,
+        "score_data":-5.0,
+        "xapi":-5.0,
     }
 }
 
@@ -130,10 +130,21 @@ Normal_variable = {
     "xapi":1e-2,
 }
 
+Dropout_prob = {
+    "score_data":{
+        "train":1,
+        "test":1
+    },
+    "xapi":{
+        "train": 0.7,
+        "test": 1
+    }
+}
+
 Learning_rate = {
     "LR":{
-        "score_data":1e-2,
-        "xapi":1e-2,
+        "score_data":1e-1,
+        "xapi":1e-3,
     },
     "SVM":{
         "score_data":1e-3,
@@ -147,15 +158,15 @@ Learning_rate = {
 
 Train_step = {
     "LR":{
-        "score_data":1000,
+        "score_data":2000,
         "xapi":1000
     },
     "SVM":{
-        "score_data":1000,
+        "score_data":2000,
         "xapi":1000
     },
     "DNN":{
-        "score_data":1000,
+        "score_data":2000,
         "xapi":1000
     }
 }

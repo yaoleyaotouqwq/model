@@ -141,7 +141,6 @@ class MainWindow(QMainWindow):
             self.table_model.setHeaderData(27, Qt.Horizontal, Parameter.Tablefield_Name["0"][27])
 
         self.table_view.setModel(self.table_model)
-        self.table_view.setWindowTitle(Parameter.TableView_Name)
         # 隐藏列头
         self.table_view.verticalHeader().hide()
         # 监听鼠标点击事件
@@ -191,8 +190,22 @@ class MainWindow(QMainWindow):
         self.button3.setCursor(QCursor(Qt.PointingHandCursor))
         self.button4.setCursor(QCursor(Qt.PointingHandCursor))
 
+        # 实现mouseMoveEvent，监听鼠标事件
+        self.button1.setMouseTracking(True)
+        self.button1.installEventFilter(self)
+        self.button2.setMouseTracking(True)
+        self.button2.installEventFilter(self)
+        self.button3.setMouseTracking(True)
+        self.button3.installEventFilter(self)
+        self.button4.setMouseTracking(True)
+        self.button4.installEventFilter(self)
+
         # 表视图(仅学生和教师用户可用)
         self.table_view = QTableView()
+
+        # 实现mouseMoveEvent，监听鼠标事件
+        self.table_view.setMouseTracking(True)
+        self.table_view.installEventFilter(self)
 
         # 模型运行结果页面(仅管理员可用)
         # 可视化图形
@@ -227,6 +240,102 @@ class MainWindow(QMainWindow):
     def get_table(self,table_name):
         # 初始化数据表
         self.initialize_table(table_name)
+        # 获取已训练的数据样本供预测数据归一化处理
+        self.train_data_save(table_name)
+
+    def train_data_save(self,table_name):
+        # 先检测模型是否已训练完成
+        if os.listdir(Model_Parameter.Model_path2["LR"][table_name] + "/") \
+                and os.listdir(Model_Parameter.Model_path2["SVM"][table_name] + "/") \
+                and os.listdir(Model_Parameter.Model_path2["DNN"][table_name] + "/"):
+
+            # 获取已训练的最后一个数据样本序号
+            f = open(Model_Parameter.id_path[table_name], 'rb')
+            id = pickle.load(f)
+            f.close()
+
+            # 建立检索语句
+            if table_name == Parameter.Table_Name[0]:
+                sql_word = "SELECT * FROM " + "`" + str(table_name) + "` where 序号 <= '" + str(
+                    id) + "'" + "and NOT ISNULL(卷面成绩)"
+            elif table_name == Parameter.Table_Name[1]:
+                sql_word = "SELECT * FROM " + "`" + str(table_name) + "` where 序号 >= '" + str(
+                    id) + "'" + "and NOT ISNULL(学生分数等级)"
+
+            datas = []
+            if self.query.exec_(sql_word):
+                while self.query.next():
+                    datas.append([str(self.query.value(temp), encoding="utf-8")
+                                  for temp in range(Parameter.Score_data_num[table_name]["score_start"],
+                                                    Parameter.Score_data_num[table_name]["variety"])])
+
+            self.predict.train_data = datas
+
+    # 定义鼠标指向按钮的事件
+    def eventFilter(self, object, event):
+        if object == self.button1:
+            if event.type() == QEvent.Enter:
+                self.button1.setToolTip(Parameter.Text_tips["Infor"])
+        elif object == self.button2:
+            if event.type() == QEvent.Enter:
+                 # 仅模型都生成时可使用
+                if self.identity != Parameter.identity["Administrator"]:
+                    if os.listdir(Model_Parameter.Model_path2["LR"][self.table_name] + "/") \
+                            and os.listdir(Model_Parameter.Model_path2["SVM"][self.table_name] + "/") \
+                            and os.listdir(Model_Parameter.Model_path2["DNN"][self.table_name] + "/"):
+                        self.button2.setToolTip(Parameter.Text_tips["Predict"]["model_finish"])
+                    else:
+                        self.button2.setToolTip(Parameter.Text_tips["Predict"]["wait_model"])
+                else:
+                    if os.listdir(Model_Parameter.Model_path2["LR"][self.table_name] + "/") \
+                            and os.listdir(Model_Parameter.Model_path2["SVM"][self.table_name] + "/") \
+                            and os.listdir(Model_Parameter.Model_path2["DNN"][self.table_name] + "/"):
+                        self.button2.setToolTip(Parameter.Text_tips["Predict"]["model_finish"])
+                    else:
+                        self.button2.setToolTip(Parameter.Text_tips["Predict"]["need_model"])
+
+        elif object == self.button3:
+            if event.type() == QEvent.Enter:
+                if self.identity != Parameter.identity["Administrator"]:
+                    self.button3.setToolTip(Parameter.Text_tips["Search"])
+                else:
+                    if os.listdir(Model_Parameter.Model_path2["LR"][self.table_name] + "/") \
+                            and os.listdir(Model_Parameter.Model_path2["SVM"][self.table_name] + "/") \
+                            and os.listdir(Model_Parameter.Model_path2["DNN"][self.table_name] + "/"):
+
+                        old_id = 0
+                        new_id = 0
+
+                        f = open(Model_Parameter.id_path[self.table_name], 'rb')
+                        old_id = pickle.load(f)
+                        f.close()
+
+                        sql_word = "SELECT * FROM "+"`"+self.table_name+"`"+" where 序号=(select MAX(序号) FROM "+"`"+self.table_name+"`"+")"
+
+                        if self.query.exec_(sql_word) and self.query.next():
+                            new_id = self.query.value(0)
+
+                        self.button3.setToolTip(Parameter.Text_tips["Train"]+str(old_id)+" and "+str(new_id))
+                    else:
+                        self.button3.setToolTip(Parameter.Text_tips["Predict"]["need_model"])
+
+        elif object == self.button4:
+            if event.type() == QEvent.Enter:
+                if self.identity == Parameter.identity["Student"]:
+                    self.button4.setToolTip(Parameter.Text_tips["Graph"])
+                elif self.identity == Parameter.identity["Teacher"]:
+                    self.button4.setToolTip(Parameter.Text_tips["Search_All"])
+                elif self.identity == Parameter.identity["Administrator"]:
+                    self.button4.setToolTip(Parameter.Text_tips["Testing"])
+
+        elif object == self.table_view:
+            if event.type() == QEvent.Enter:
+                if self.identity == Parameter.identity["Student"]:
+                    self.table_view.setToolTip(Parameter.Text_tips["Table_view"])
+                elif self.identity == Parameter.identity["Teacher"]:
+                    self.table_view.setToolTip(Parameter.Text_tips["Table_change"])
+
+        return QWidget.eventFilter(self, object, event)
 
     def doubleClicked(self):
         # 教师专用功能
@@ -237,6 +346,8 @@ class MainWindow(QMainWindow):
             if index.isValid() and (self.predict.isVisible() or self.echarts.isVisible()):
                 self.table_view.setEditTriggers(QAbstractItemView.NoEditTriggers)
                 record = self.table_model.record(index.row())
+
+                num_string = str(record.value(Parameter.TableView_num_index))
                 account_string = str(record.value(Parameter.TableView_account_index), encoding="utf-8")
 
                 # 不需要重复生成预测图
@@ -245,10 +356,18 @@ class MainWindow(QMainWindow):
                         if file == account_string + ".html":
                             return
 
-                self.predict.run_predict(str(record.value(Parameter.TableView_account_index), encoding="utf-8"))
+                self.predict.run_predict({num_string:str(record.value(Parameter.TableView_account_index), encoding="utf-8")})
 
                 # 弹出图表窗口并关闭预测查询窗口
                 if self.predict.isVisible():
+                    # 先清空文件夹,保证不受上一次预测的干扰
+                    if os.path.exists(Model_Parameter.Echarts_path):
+                        for file in os.listdir(Model_Parameter.Echarts_path):
+                            os.remove(os.path.join(os.getcwd(), Model_Parameter.Echarts_path + file))
+
+                    # 先清空Echarts选择项,保证不受上一次预测的干扰
+                    self.echarts.listwidget.clear()
+
                     self.predict.lineEdit_account.setText("")
                     self.predict.setVisible(False)
                     # 设置顶层显示，方便用户操作
@@ -270,22 +389,28 @@ class MainWindow(QMainWindow):
 
     def func1(self):
         if self.identity == Parameter.identity["Teacher"]:
-            # 禁用其他按钮保证系统稳定性
-            self.button1.setEnabled(False)
-            self.button2.setEnabled(False)
-            self.predict.verticalLayout.addLayout(self.predict.level_Layout1)
-            self.predict.verticalLayout.addLayout(self.predict.level_Layout5)
-            self.predict.show()
+            if os.listdir(Model_Parameter.Model_path2["LR"][self.table_name] + "/") \
+                    and os.listdir(Model_Parameter.Model_path2["SVM"][self.table_name] + "/") \
+                    and os.listdir(Model_Parameter.Model_path2["DNN"][self.table_name] + "/"):
+                        # 禁用其他按钮保证系统稳定性
+                        self.button1.setEnabled(False)
+                        self.button2.setEnabled(False)
+                        self.predict.verticalLayout.addLayout(self.predict.level_Layout1)
+                        self.predict.verticalLayout.addLayout(self.predict.level_Layout5)
+                        self.predict.show()
 
         elif self.identity == Parameter.identity["Student"]:
-            # 禁用其他按钮保证系统稳定性
-            self.button1.setEnabled(False)
-            self.button2.setEnabled(False)
-            self.button4.setEnabled(False)
-            self.predict.verticalLayout.addLayout(self.predict.level_Layout1)
-            self.predict.verticalLayout.addLayout(self.predict.level_Layout5)
-            self.predict.lineEdit_account.setText(self.user_id)
-            self.predict.show()
+            if os.listdir(Model_Parameter.Model_path2["LR"][self.table_name] + "/") \
+                    and os.listdir(Model_Parameter.Model_path2["SVM"][self.table_name] + "/") \
+                    and os.listdir(Model_Parameter.Model_path2["DNN"][self.table_name] + "/"):
+                        # 禁用其他按钮保证系统稳定性
+                        self.button1.setEnabled(False)
+                        self.button2.setEnabled(False)
+                        self.button4.setEnabled(False)
+                        self.predict.verticalLayout.addLayout(self.predict.level_Layout1)
+                        self.predict.verticalLayout.addLayout(self.predict.level_Layout5)
+                        self.predict.lineEdit_account.setText(self.user_id)
+                        self.predict.show()
         else:
             # 确立模式为重新开始训练
             self.Model_mode = Model_Parameter.Model_mode[0]
@@ -293,7 +418,12 @@ class MainWindow(QMainWindow):
             datas = []
             id= 0
 
-            sql_word = "SELECT * FROM "+"`"+ str(self.table_name)+"`"
+            # 去掉未知成绩的数据
+            if self.table_name == Parameter.Table_Name[0]:
+                sql_word = "SELECT * FROM " + "`" + str(self.table_name) + "` where NOT ISNULL(卷面成绩)"
+            elif self.table_name == Parameter.Table_Name[1]:
+                sql_word = "SELECT * FROM " + "`" + str(self.table_name) + "` where NOT ISNULL(学生分数等级)"
+
             self.query.exec_(sql_word)
             while self.query.next():
                 datas.append([str(self.query.value(temp), encoding="utf-8")
@@ -302,8 +432,8 @@ class MainWindow(QMainWindow):
                 # 获取最大的数据序号
                 id = self.query.value(0)
 
-            # 暂定每个模型的batch_size都一样，只有训练集大于一个batch_size才能进行训练
-            if len(datas) >= Model_Parameter.Batch_size[str(self.table_name)]['LR']:
+            # 只有训练集大于一个batch_size才能进行训练
+            if len(datas) >= Model_Parameter.Batch_size[str(self.table_name)]['LR'] and len(datas) >= Model_Parameter.Batch_size[str(self.table_name)]['SVM'] and len(datas) >= Model_Parameter.Batch_size[str(self.table_name)]['DNN']:
                 with open(Model_Parameter.id_path[self.table_name], 'wb') as f:
                     pickle.dump(int(id), f)
 
@@ -325,51 +455,68 @@ class MainWindow(QMainWindow):
             self.search_dialog.lineEdit_account.setText(self.user_id)
             self.search_dialog.show()
         else:
-
-            # 确立模式为继续训练
-            self.Model_mode = Model_Parameter.Model_mode[1]
-
             msgBox = QMessageBox()
-            datas = []
-            f = open(Model_Parameter.id_path[self.table_name], 'rb')
-            id = pickle.load(f)
+            if os.listdir(Model_Parameter.Model_path2["LR"][self.table_name] + "/") \
+                    and os.listdir(Model_Parameter.Model_path2["SVM"][self.table_name] + "/") \
+                    and os.listdir(Model_Parameter.Model_path2["DNN"][self.table_name] + "/"):
+                # 确立模式为继续训练
+                self.Model_mode = Model_Parameter.Model_mode[1]
 
-            sql_word = "SELECT * FROM "+"`"+ str(self.table_name)+"`"  #测试继续训练是否可用
-            # sql_word = "SELECT * FROM "+"`"+ str(self.table_name)+"`" + "where 序号 > '" + str(id) + "'"
-            if self.query.exec_(sql_word):
-                while self.query.next():
-                    datas.append([str(self.query.value(temp), encoding="utf-8")
-                                  for temp in range(Parameter.Score_data_num[self.table_name]["score_start"],
-                                                    Parameter.Score_data_num[self.table_name]["variety"])])
-                    id = self.query.value(0)
+                datas = []
 
-                    # 暂定每个模型的batch_size都一样，只有新的训练集大于一个batch_size才能继续进行训练
-                if len(datas) >= Model_Parameter.Batch_size[self.table_name]['LR']:
-                    with open(Model_Parameter.id_path[self.table_name], 'wb') as f:
-                        pickle.dump(int(id), f)
+                f = open(Model_Parameter.id_path[self.table_name], 'rb')
+                id = pickle.load(f)
+                f.close()
 
-                    # 等待线程结束任务再进行处理
-                    if not self.thread.isRunning():
-                        # 开启线程处理
-                        self.thread.get_data(datas)
-                        self.thread.start()
+                # 测试继续训练是否可用
+                if self.table_name == Parameter.Table_Name[0]:
+                    sql_word = "SELECT * FROM " + "`" + str(self.table_name) + "` where NOT ISNULL(卷面成绩)"
+                elif self.table_name == Parameter.Table_Name[1]:
+                    sql_word = "SELECT * FROM " + "`" + str(self.table_name) + "` where NOT ISNULL(学生分数等级)"
 
+                # 去掉未知成绩的数据
+                # if self.table_name == Parameter.Table_Name[0]:
+                #     sql_word = "SELECT * FROM " + "`" + str(self.table_name) + "` where 序号 > '" + str(id) + "'" + "and NOT ISNULL(卷面成绩)"
+                # elif self.table_name == Parameter.Table_Name[1]:
+                #     sql_word = "SELECT * FROM " + "`" + str(self.table_name) + "` where 序号 > '" + str(id) + "'" + "and NOT ISNULL(学生分数等级)"
+
+                if self.query.exec_(sql_word):
+                    while self.query.next():
+                        datas.append([str(self.query.value(temp), encoding="utf-8")
+                                      for temp in range(Parameter.Score_data_num[self.table_name]["score_start"],
+                                                        Parameter.Score_data_num[self.table_name]["variety"])])
+                        id = self.query.value(0)
+
+                    # 只有训练集大于一个batch_size才能进行训练
+                    if len(datas) >= Model_Parameter.Batch_size[str(self.table_name)]['LR'] and len(datas) >= Model_Parameter.Batch_size[str(self.table_name)]['SVM'] and len(datas) >= Model_Parameter.Batch_size[str(self.table_name)]['DNN']:
+                        with open(Model_Parameter.id_path[self.table_name], 'wb') as f:
+                            pickle.dump(int(id), f)
+
+                        # 等待线程结束任务再进行处理
+                        if not self.thread.isRunning():
+                            # 开启线程处理
+                            self.thread.get_data(datas)
+                            self.thread.start()
+
+                    else:
+                        msgBox.warning(self, Parameter.Message_tips["Windows_title"],
+                                       Parameter.Message_tips["Train Failed"], QMessageBox.Ok)
                 else:
                     msgBox.warning(self, Parameter.Message_tips["Windows_title"],
                                    Parameter.Message_tips["Train Failed"], QMessageBox.Ok)
+
+                # 恢复所有其他按钮
+                if not self.button1.isEnabled():
+                    self.button1.setEnabled(True)
+                if not self.button2.isEnabled():
+                    self.button2.setEnabled(True)
+                if not self.button3.isEnabled():
+                    self.button3.setEnabled(True)
+                if not self.button4.isEnabled():
+                    self.button4.setEnabled(True)
             else:
                 msgBox.warning(self, Parameter.Message_tips["Windows_title"],
-                               Parameter.Message_tips["Train Failed"], QMessageBox.Ok)
-
-            # 恢复所有其他按钮
-            if not self.button1.isEnabled():
-                self.button1.setEnabled(True)
-            if not self.button2.isEnabled():
-                self.button2.setEnabled(True)
-            if not self.button3.isEnabled():
-                self.button3.setEnabled(True)
-            if not self.button4.isEnabled():
-                self.button4.setEnabled(True)
+                               Parameter.Message_tips["Need Train"], QMessageBox.Ok)
 
     def func3(self):
         if self.identity == Parameter.identity["Teacher"]:
@@ -381,7 +528,10 @@ class MainWindow(QMainWindow):
 
             msgBox = QMessageBox()
 
-            sql_word = "SELECT * FROM "+"`"+self.table_name+"`"+" where 学号='" + self.user_id + "'"
+            if self.table_name == Parameter.Table_Name[0]:
+                sql_word = "SELECT * FROM " + "`" + str(self.table_name) + "`" +" where 学号='" + self.user_id + "'"+" and ISNULL(卷面成绩)"
+            elif self.table_name == Parameter.Table_Name[1]:
+                sql_word = "SELECT * FROM " + "`" + str(self.table_name) + "`" + " where 学号='" + self.user_id + "'"+" and ISNULL(学生分数等级)"
 
             # 账号信息判断
             if self.query.exec_(sql_word) and self.query.next():
@@ -396,9 +546,27 @@ class MainWindow(QMainWindow):
                 self.echarts.calculate_graph()
                 self.echarts.show()
             else:
-                # 查询无结果
-                msgBox.warning(self, Parameter.Message_tips["Windows_title"],
-                               Parameter.Message_tips["Search Failed"], QMessageBox.Ok)
+                if self.table_name == Parameter.Table_Name[0]:
+                    sql_word = "SELECT * FROM " + "`" + str(
+                        self.table_name) + "`"+" where 学号='" + self.user_id + "'"
+                elif self.table_name == Parameter.Table_Name[1]:
+                    sql_word = "SELECT * FROM " + "`" + str(
+                        self.table_name) + "`"+" where 学号='" + self.user_id + "'"
+                if self.query.exec_(sql_word) and self.query.next():
+                    # 禁用所有其他按钮保证系统稳定性
+                    self.button1.setEnabled(False)
+                    self.button2.setEnabled(False)
+                    self.button4.setEnabled(False)
+
+                    # 设置功能区域和图形区域的标题
+                    self.echarts.label_left.setText(Parameter.Visual_Graph["Graph_Name"][2])
+                    self.echarts.label_right.setText(Parameter.Visual_Graph["Graph_Name"][1])
+                    self.echarts.calculate_graph()
+                    self.echarts.show()
+                else:
+                    # 查询无结果
+                    msgBox.warning(self, Parameter.Message_tips["Windows_title"],
+                                   Parameter.Message_tips["Search Failed"], QMessageBox.Ok)
 
         else:
             # 确立模式为评估模型
@@ -407,7 +575,13 @@ class MainWindow(QMainWindow):
             msgBox = QMessageBox()
             datas = []
             id = 0
-            sql_word = "SELECT * FROM "+"`"+ str(self.table_name)+"`"
+
+            # 去掉未知成绩的数据
+            if self.table_name == Parameter.Table_Name[0]:
+                sql_word = "SELECT * FROM " + "`" + str(self.table_name) + "` where NOT ISNULL(卷面成绩)"
+            elif self.table_name == Parameter.Table_Name[1]:
+                sql_word = "SELECT * FROM " + "`" + str(self.table_name) + "` where NOT ISNULL(学生分数等级)"
+
             self.query.exec_(sql_word)
             while self.query.next():
                 datas.append([str(self.query.value(temp), encoding="utf-8")
@@ -415,8 +589,8 @@ class MainWindow(QMainWindow):
                                                 Parameter.Score_data_num[self.table_name]["variety"])])
                 id = self.query.value(0)
 
-            # 暂定每个模型的batch_size都一样，只有训练集大于一个batch_size才能进行训练
-            if len(datas)//Model_Parameter.Test_K_num[self.table_name] >= Model_Parameter.Batch_size[self.table_name]['LR']:
+            # 评估模型后相当于进行了所有数据的训练，所以存的序号是最大值，不能继续用原数据进行训练
+            if len(datas)//Model_Parameter.Test_K_num[self.table_name] >= Model_Parameter.Batch_size[self.table_name]['LR'] and len(datas)//Model_Parameter.Test_K_num[self.table_name] >= Model_Parameter.Batch_size[self.table_name]['SVM'] and len(datas)//Model_Parameter.Test_K_num[self.table_name] >= Model_Parameter.Batch_size[self.table_name]['DNN']:
                 with open(Model_Parameter.id_path[self.table_name], 'wb') as f:
                     pickle.dump(int(id), f)
 
@@ -669,7 +843,10 @@ class MainWindow(QMainWindow):
         self.graph.load(QUrl("file:///" + r"/".join(
             os.getcwd().split("\\")) + "/" + Model_Parameter.Echarts_path + Parameter.Visual_Graph["Graph_Name"][3] + str(data_list[0][len(data_list[0])-1]) + ".html"))
 
-    def Test_graph(self, data_list):
+    def Test_graph(self, data):
+
+        data_list = data[0]
+        kappa_list = data[1]
 
         Clear_Echarts()
 
@@ -677,6 +854,7 @@ class MainWindow(QMainWindow):
 
         # 构造折线图
         line = Line(Parameter.Visual_Graph["Func_name"][5])
+        line_kappa = Line(Parameter.Visual_Graph["Func_name"][7])
 
         # 常规显示
         if data_list_len != len(Parameter.Visual_Graph["Line_model_name_index"]):
@@ -701,6 +879,30 @@ class MainWindow(QMainWindow):
         else:
 
             # 评估图
+            # kappa值
+            line_kappa.add(Parameter.Visual_Graph["Line_name"][9], data_list[0][0], kappa_list[0],
+                     xaxis_rotate=Parameter.Visual_Graph["Line_x_rotate"],
+                     xaxis_name=Parameter.Visual_Graph["Columns_Name"][5],
+                     yaxis_name=Parameter.Visual_Graph["Columns_Name"][7],
+                     yaxis_name_gap=Parameter.Visual_Graph["Y_gap"],
+                     is_more_utils=True,
+                     is_smooth=True)
+            line_kappa.add(Parameter.Visual_Graph["Line_name"][10],data_list[1][0], kappa_list[1],
+                     xaxis_rotate=Parameter.Visual_Graph["Line_x_rotate"],
+                     xaxis_name=Parameter.Visual_Graph["Columns_Name"][5],
+                     yaxis_name=Parameter.Visual_Graph["Columns_Name"][7],
+                     yaxis_name_gap=Parameter.Visual_Graph["Y_gap"],
+                     is_more_utils=True,
+                     is_smooth=True)
+            line_kappa.add(Parameter.Visual_Graph["Line_name"][11],data_list[2][0], kappa_list[2],
+                     xaxis_rotate=Parameter.Visual_Graph["Line_x_rotate"],
+                     xaxis_name=Parameter.Visual_Graph["Columns_Name"][5],
+                     yaxis_name=Parameter.Visual_Graph["Columns_Name"][7],
+                     yaxis_name_gap=Parameter.Visual_Graph["Y_gap"],
+                     is_more_utils=True,
+                     is_smooth=True)
+
+            # 准确率
             line.add(Parameter.Visual_Graph["Line_name"][4], data_list[0][0], data_list[0][1],
                      xaxis_rotate=Parameter.Visual_Graph["Line_x_rotate"],
                      xaxis_name=Parameter.Visual_Graph["Columns_Name"][5],
@@ -737,6 +939,7 @@ class MainWindow(QMainWindow):
 
             # 顺序渲染
             page = Page()
+            page.add(line_kappa)
             page.add(line)
             page.add(bar)
 
@@ -861,8 +1064,12 @@ class Predict(QDialog):
         super().__init__(*args , **kwargs)
         self.query = QSqlQuery()
         self.Main_win = Main_win
+        self.thread = Prdict_Thread(self.Main_win)
         self.window_layout()
         self.item_layout()
+
+        # 接受信号进入预测构图模式
+        self.thread.signal_model_predict.connect(self.print_predict_graph)
 
     def window_layout(self):
         self.setWindowTitle(Parameter.Window_Name["Predict"])
@@ -918,16 +1125,6 @@ class Predict(QDialog):
         def change_data_xapi(data):
             score_space = ["0-69", "70-89", "90-100"]
             return score_space[data]
-
-        # 学生用户每次调用需要清空
-        if self.Main_win.identity == Parameter.identity["Student"]:
-            # 先清空文件夹
-            if os.path.exists(Model_Parameter.Echarts_path):
-                for file in os.listdir(Model_Parameter.Echarts_path):
-                    os.remove(os.path.join(os.getcwd(), Model_Parameter.Echarts_path + file))
-
-            # 先清空Echarts选择项
-            self.Main_win.echarts.listwidget.clear()
 
         predict_data = []
         truly_data = []
@@ -1038,18 +1235,39 @@ class Predict(QDialog):
 
     def run_predict(self,account):
         msgBox = QMessageBox()
-        if isinstance(account, list):
+        # 选定指定的学生数据
+        if isinstance(account,dict):
             datas = []
+            account_data = account[[temp for temp in account.keys()][0]]
+            if self.Main_win.table_name == Parameter.Table_Name[0]:
+                sql_word = "SELECT * FROM " + "`" + self.Main_win.table_name + "`" + " where 序号 ='" + [temp for temp in account.keys()][0] + "'"
+            elif self.Main_win.table_name == Parameter.Table_Name[1]:
+                sql_word = "SELECT * FROM " + "`" + self.Main_win.table_name + "`" + " where 序号 ='" + [temp for temp in account.keys()][0] + "'"
+
+            # 账号密码信息判断,用exec执行sql，用next判断是否成功
+            if self.query.exec_(sql_word) and self.query.next():
+                datas = ([str(self.query.value(temp), encoding="utf-8")
+                              for temp in range(Parameter.Score_data_num[self.Main_win.table_name]["score_start"],
+                                                Parameter.Score_data_num[self.Main_win.table_name]["variety"])])
+
+            else:
+                msgBox.warning(self, Parameter.Message_tips["Windows_title"],
+                               Parameter.Message_tips["Search Failed"], QMessageBox.Ok)
+                self.cancel_click()
+
+        elif isinstance(account, list):
+            datas = []
+            account_data = account
             for temp in account:
                 if self.Main_win.table_name == Parameter.Table_Name[0]:
-                    sql_word = "SELECT * FROM "+"`"+self.Main_win.table_name+"`"+" where 学号 ='" + temp + "' and 卷面成绩 = ''"
+                    sql_word = "SELECT * FROM "+"`"+self.Main_win.table_name+"`"+" where 学号 ='" + temp + "' and ISNULL(卷面成绩)"
                 elif self.Main_win.table_name == Parameter.Table_Name[1]:
-                    sql_word = "SELECT * FROM " + "`" + self.Main_win.table_name + "`" + " where 学号 ='" + temp + "' and 学生分数等级 = ''"
+                    sql_word = "SELECT * FROM " + "`" + self.Main_win.table_name + "`" + " where 学号 ='" + temp + "' and ISNULL(学生分数等级)"
 
                 # 账号密码信息判断,用exec执行sql，用next判断是否成功
                 if self.query.exec_(sql_word) and self.query.next():
-                    datas.append([str(self.query.value(temp), encoding="utf-8")
-                         for temp in range(Parameter.Score_data_num[self.Main_win.table_name]["score_start"],
+                    datas.append([str(self.query.value(data_temp), encoding="utf-8")
+                         for data_temp in range(Parameter.Score_data_num[self.Main_win.table_name]["score_start"],
                                            Parameter.Score_data_num[self.Main_win.table_name]["variety"])])
                 else:
                     if self.Main_win.table_name == Parameter.Table_Name[0]:
@@ -1058,8 +1276,8 @@ class Predict(QDialog):
                         sql_word = "SELECT * FROM " + "`" + self.Main_win.table_name + "`" + " where 学号 ='" + temp + "'"
 
                     if self.query.exec_(sql_word) and self.query.next():
-                        datas.append([str(self.query.value(temp), encoding="utf-8")
-                                 for temp in range(Parameter.Score_data_num[self.Main_win.table_name]["score_start"],
+                        datas.append([str(self.query.value(data_temp), encoding="utf-8")
+                                 for data_temp in range(Parameter.Score_data_num[self.Main_win.table_name]["score_start"],
                                                    Parameter.Score_data_num[self.Main_win.table_name]["variety"])])
                     else:
                         msgBox.warning(self, Parameter.Message_tips["Windows_title"],
@@ -1067,10 +1285,11 @@ class Predict(QDialog):
                         self.cancel_click()
 
         else:
+            account_data = account
             if self.Main_win.table_name == Parameter.Table_Name[0]:
-                sql_word = "SELECT * FROM " + "`" + self.Main_win.table_name + "`" + " where 学号 ='" + account + "' and 卷面成绩 = ''"
+                sql_word = "SELECT * FROM " + "`" + self.Main_win.table_name + "`" + " where 学号 ='" + account + "' and ISNULL(卷面成绩)"
             elif self.Main_win.table_name == Parameter.Table_Name[1]:
-                sql_word = "SELECT * FROM " + "`" + self.Main_win.table_name + "`" + " where 学号 ='" + account + "' and 学生分数等级 = ''"
+                sql_word = "SELECT * FROM " + "`" + self.Main_win.table_name + "`" + " where 学号 ='" + account + "' and ISNULL(学生分数等级)"
 
             # 账号密码信息判断,用exec执行sql，用next判断是否成功
             if self.query.exec_(sql_word) and self.query.next():
@@ -1094,13 +1313,15 @@ class Predict(QDialog):
                     # 不执行预测操作
                     return
 
-        LR_result = self.Main_win.model_LR.LR_prediction(datas)
-        SVM_result = self.Main_win.model_SVM.SVM_prediction(datas)
-        DNN_result = self.Main_win.model_DNN.DNN_prediction(datas)
+        # 等待线程结束任务再进行处理
+        if not self.thread.isRunning():
+            # 开启线程处理
+            self.thread.get_data(account_data,self.train_data,datas)
+            self.thread.start()
 
-        print(LR_result, SVM_result,DNN_result)
-        # 生成图表
-        self.general_graph([LR_result,SVM_result,DNN_result],account)
+    def print_predict_graph(self,data_list):
+        # 生成图表,数据列表前三项为预测结果，最后一项为账号信息
+        self.general_graph(data_list[:3], data_list[3])
 
         # 设置功能区域和图形区域的标题
         self.Main_win.echarts.label_left.setText(Parameter.Visual_Graph["Graph_Name"][0])
@@ -1126,8 +1347,20 @@ class Predict(QDialog):
                 self.cancel_click()
 
         self.setVisible(False)
+        # 设置顶层显示，方便用户操作
+        self.Main_win.echarts.setWindowFlag(QtCore.Qt.WindowStaysOnTopHint)
+        self.Main_win.echarts.show()
+
+        # 先清空文件夹,保证不受上一次预测的干扰
+        if os.path.exists(Model_Parameter.Echarts_path):
+            for file in os.listdir(Model_Parameter.Echarts_path):
+                os.remove(os.path.join(os.getcwd(), Model_Parameter.Echarts_path + file))
+
+        # 先清空Echarts选择项,保证不受上一次预测的干扰
+        self.Main_win.echarts.listwidget.clear()
 
     def cancel_click(self):
+
         self.lineEdit_account.setText("")
         self.setVisible(False)
 
@@ -1413,6 +1646,9 @@ class Login_dialog(QDialog):
         self.lineEdit_account.setPlaceholderText(Parameter.Text_tips["Login"]["account"])
         self.lineEdit_password.setPlaceholderText(Parameter.Text_tips["Login"]["password"])
 
+        # 设置密码方式
+        self.lineEdit_password.setEchoMode(QLineEdit.Password)
+
         # 下拉选择提示：
         self.table_name = QLabel(Parameter.Text_label["Login"]["table_name"])
         # 下拉选择框
@@ -1500,6 +1736,9 @@ class Echarts(QDialog):
         self.is_Calculate = False
         # 数据项集合
         self.Calcul_data_lsit = []
+        # 关键指标,使用该指标来收集和删除Widget
+        self.Widget_list = []
+
         self.window_layout()
         self.item_layout()
 
@@ -1627,7 +1866,7 @@ class Echarts(QDialog):
                                    float(str(self.Main_win.query.value(temp), encoding="utf-8"))
                                    for temp in range(Parameter.Score_data_num[self.Main_win.table_name]["Score_calculate"][0])])
 
-                self.Calcul_data_lsit.append(datas[0])
+                self.Calcul_data_lsit.append(datas[-1])
                 datas = []
 
                 # 实现折线图计算构建
@@ -1655,25 +1894,28 @@ class Echarts(QDialog):
                                   float(str(self.Main_win.query.value(temp), encoding="utf-8"))
                                   for temp in range(Parameter.Score_data_num[self.Main_win.table_name]["Score_calculate"][1])])
 
-                self.Calcul_data_lsit.append([datas[0],min_data,max_data])
+                self.Calcul_data_lsit.append([datas[-1],min_data,max_data])
 
                 datas = []
 
                 # 实现雷达图计算构建
                 self.Main_win.query.exec_(Parameter.Sql_word[self.Main_win.table_name][2] + "'" + self.Main_win.user_id + "'")
                 while self.Main_win.query.next():
+                    data_temp = []
                     # 课堂成绩存在等级和分数的转换
                     for temp in range(Parameter.Score_data_num[self.Main_win.table_name]["Score_calculate"][2]):
                         string_temp = str(self.Main_win.query.value(temp), encoding="utf-8")
                         if string_temp == "":
-                            datas.append(0.)
+                            data_temp.append(0.)
                         else:
                             if temp == Data_change.Score_dict["index"]:
-                                datas.append(float(Data_change.Score_dict[string_temp]))
+                                data_temp.append(float(Data_change.Score_dict[string_temp]))
                             else:
-                                datas.append(float(string_temp))
+                                data_temp.append(float(string_temp))
 
-                self.Calcul_data_lsit.append([datas])
+                    datas.append(data_temp)
+
+                self.Calcul_data_lsit.append([datas[-1]])
 
                 # 保存饼图每块的名称
                 self.pie_item_name = []
@@ -1843,8 +2085,6 @@ class Echarts(QDialog):
 
     def Print_Graph(self,func):
 
-        # 用来收集和删除Widget
-        self.Widget_list = []
         # 变为集合
         if not isinstance(func,list):
             func = [func]
@@ -1873,6 +2113,9 @@ class Echarts(QDialog):
         for widget_temp in self.Widget_list:
             self.stackedWidget.removeWidget(widget_temp)
 
+        # 重置页面集合为空
+        self.Widget_list = []
+
         # 关闭窗口时清空选项
         self.listwidget.clear()
 
@@ -1888,6 +2131,30 @@ class Echarts(QDialog):
             self.Main_win.button2.setEnabled(True)
         if not self.Main_win.button4.isEnabled():
             self.Main_win.button4.setEnabled(True)
+
+
+class Prdict_Thread(QThread):
+    signal_model_predict = pyqtSignal(list)
+
+    def __init__(self, Main_win):
+        super(Prdict_Thread, self).__init__()
+        self.Main_win = Main_win
+
+    def get_data(self,account_data,train_data,predict_data):
+        self.account_data = account_data
+        self.train_data = train_data
+        self.predict_data = predict_data
+
+    def run(self):
+        # 将预测数据添加到训练数据，在一个维度上归一化
+        self.train_data.append(self.predict_data)
+        LR_result = self.Main_win.model_LR.LR_prediction(self.train_data)
+        SVM_result = self.Main_win.model_SVM.SVM_prediction(self.train_data)
+        DNN_result = self.Main_win.model_DNN.DNN_prediction(self.train_data)
+
+        print(LR_result, SVM_result, DNN_result)
+
+        self.signal_model_predict.emit([LR_result, SVM_result, DNN_result,self.account_data])
 
 
 class Thread(QThread):
@@ -1933,22 +2200,29 @@ class Thread(QThread):
             # 做一次总结图
             self.signal_model_train.emit([data_list1, data_list2, data_list3])
         else:
+            kappa_list1 = []
+            kappa_list2 = []
+            kappa_list3 = []
+
             datas = self.Main_win.model_LR.LR_test(self.datas)
-            for times_list,new_score_list,average_score_list in datas:
+            for times_list,new_score_list,average_score_list,kappa in datas:
                 data_list1 = [times_list,new_score_list,average_score_list,Parameter.Visual_Graph["Line_model_name_index"][0]]
-                self.signal_model_test.emit(data_list1)
+                kappa_list1.append(kappa)
+                self.signal_model_test.emit([data_list1,kappa_list1])
 
             datas = self.Main_win.model_SVM.SVM_test(self.datas)
-            for times_list,new_score_list,average_score_list in datas:
+            for times_list,new_score_list,average_score_list,p_and_r_list in datas:
                 data_list2 = [times_list,new_score_list,average_score_list,Parameter.Visual_Graph["Line_model_name_index"][1]]
-                self.signal_model_test.emit(data_list2)
+                kappa_list2.append(kappa)
+                self.signal_model_test.emit([data_list2,kappa_list2])
 
             datas = self.Main_win.model_DNN.DNN_test(self.datas)
-            for times_list,new_score_list,average_score_list in datas:
+            for times_list,new_score_list,average_score_list,p_and_r_list in datas:
                 data_list3 = [times_list,new_score_list,average_score_list,Parameter.Visual_Graph["Line_model_name_index"][2]]
-                self.signal_model_test.emit(data_list3)
+                kappa_list3.append(kappa)
+                self.signal_model_test.emit([data_list3,kappa_list3])
 
-            self.signal_model_test.emit([data_list1, data_list2, data_list3])
+            self.signal_model_test.emit([[data_list1, data_list2, data_list3],[kappa_list1,kappa_list2,kappa_list3]])
 
         # 恢复所有其他按钮
         if not self.Main_win.button1.isEnabled():
@@ -1959,6 +2233,7 @@ class Thread(QThread):
             self.Main_win.button3.setEnabled(True)
         if not self.Main_win.button4.isEnabled():
             self.Main_win.button4.setEnabled(True)
+
 
 def Clear_Echarts():
     # # 程序有可能遭受非正常关闭，运行前清空先前生成的图表

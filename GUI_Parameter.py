@@ -121,9 +121,20 @@ Text_tips = {
         "name":"请输入姓名..",
         "identity":"请选择身份："
     },
+    "Table_view":"查询可显示成绩数据（修改无效）",
+    "Table_change":"双击数据可直接修改并更新数据库。",
+    "Infor":"查看或修改个人基本信息。",
+    "Search":"查询成绩信息",
+    "Search_All":"查询所有学生的成绩信息",
+    "Train":"已训练和数据集最终的数据序号：",
     "Predict":{
         "account":"请输入账号(学号)..",
-    }
+        "wait_model":"模型未完成，无法预测，请联系管理员生成模型。",
+        "model_finish":"模型已完成，可进行预测。",
+        "need_model":"模型未生成。",
+    },
+    "Testing":"评估模型并存储最优",
+    "Graph":"学习情况图表"
 }
 
 Message_tips = {
@@ -142,6 +153,7 @@ Message_tips = {
     "Change Success":"信息已更改。",
     "Predict Own":"仅允许预测本用户成绩。",
     "Train Finish":"模型已训练完成。",
+    "Need Train":"模型未训练，建议重新训练",
     "Data Missing":"数据库当前无数据可训练或数据不足以训练",
     "Train Failed":"训练失败，数据库无新增数据或不足以训练，建议重新训练。",
     "Test Finish":"模型评估已完成。",
@@ -164,10 +176,7 @@ Butten_Name = {
     "Assessment Model":"评估模型"
 }
 
-
 Search_Name = "学号"
-
-TableView_Name = "分数表"
 
 Tablefield_Name = {
     "0":["序号" , "学号" ,  "考场座位号",
@@ -177,6 +186,7 @@ Tablefield_Name = {
     "1":["序号" , "学号" , "性别","国籍","出生地","教育阶段","年级","节ID","课程主题","学年学期","家长负责","举手次数","访问过的资源","查看公告次数","讨论次数","家长回答调查","家长学校满意度","学生缺勤日","学生分数等级"]
 }
 
+TableView_num_index = 0
 TableView_account_index = 1
 
 Model_Refresh_num = 100
@@ -194,16 +204,16 @@ Layout_Stretch = {
 }
 
 Visual_Graph = {
-    "Graph_Name":["学号","数据图","图表选项","训练过程","评估过程","评估总结"],
-    "Columns_Name":["算法","分数区间","训练步数","损失值","准确率(%)","评估集","平均分"],
+    "Graph_Name":["学号","数据图","图表选项","训练过程","评估过程","评估准确率总结"],
+    "Columns_Name":["算法","分数区间","训练步数","损失值","准确率(%)","评估集","平均分","kappa"],
     "Algorithm_Name":["LR","SVM","DNN"],
     "Student_func":["考题得分占比","SPOC单元测试对比","课堂测试情况"],
     "xapi_Student_func":["学习次数对比","家长意见及学生签到"],
-    "Func_name":["考题饼图","SPOC折线图","课堂测试雷达图","训练损失值","训练准确率","评估准确率（K折交叉检验）","算法评估均分"],
+    "Func_name":["考题饼图","SPOC折线图","课堂测试雷达图","训练损失值","训练准确率","评估准确率（K折交叉检验）","算法评估均分","Kappa系数"],
     "Func_data_name":[(3,11),(12,20),(23,28)],
     "xapi_Func_name":["学习情况次数","家长意见以及学生签到情况"],
     "xapi_Func_data_name":[(11,15),(15,18)],
-    "Line_name":["本用户分数线","最低分数线","最高分数线","LR_LOSS","LR_ACC","SVM_LOSS","SVM_ACC","DNN_LOSS","DNN_ACC"],
+    "Line_name":["本用户分数线","最低分数线","最高分数线","LR_LOSS","LR_ACC","SVM_LOSS","SVM_ACC","DNN_LOSS","DNN_ACC","LR_Kappa","SVM_Kappa","DNN_Kappa"],
     "Line_model_name_index":[[3,4],[5,6],[7,8]],
     "xapi_Line_name":["本用户学习次数折线","最低次数折线","最高次数折线"],
     "Line_x_rotate":330,

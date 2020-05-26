@@ -5,7 +5,7 @@ class Load_Batch:
 
     def __init__(self,score_data,table_name):
         # original data for X and Y
-        self.Data_X,self.Data_Y = Data_process.data_process(score_data,table_name)
+        self.Data_X,self.Data_Y = Data_process.train_data_process(score_data,table_name)
 
     def get_batch(self,data_x,data_y,batch_size):
         # 生成batch

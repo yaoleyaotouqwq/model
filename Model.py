@@ -7,6 +7,20 @@ import Batches
 import os
 import numpy as np
 
+# 衡量分类精度
+def Kappa(matrix):
+    n = np.sum(matrix)
+    sum_Po = 0
+    sum_Pe = 0
+    for i in range(len(matrix[0])):
+        sum_Po += matrix[i][i]
+        row = np.sum(matrix[i, :])
+        col = np.sum(matrix[:, i])
+        sum_Pe += row * col
+    Po = sum_Po / n
+    Pe = sum_Pe / (n * n)
+    return (Po - Pe) / (1 - Pe)
+
 class LR:
     def __init__(self,table_name):
         self.table_name = table_name
@@ -20,13 +34,14 @@ class LR:
 
             # with tf.name_scope("Result"):
             # 采用softmax实现逻辑回归的多分类
-            self.Result = tf.nn.softmax(tf.matmul(self.X, self.W) + self.B)
+            self.Result = tf.matmul(self.X, self.W) + self.B
             # with tf.name_scope("Loss"):
-            self.Loss = tf.reduce_mean(tf.reduce_sum(-self.Y*tf.log(self.Result), reduction_indices=1))
+            self.Loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(labels=self.Y, logits=self.Result))
             # with tf.name_scope("Train_op"):
             self.Train_op = tf.train.GradientDescentOptimizer(PreDefine.Learning_rate["LR"][self.table_name]).minimize(self.Loss)
             # with tf.name_scope("Accuracy"):
-            self.Acc = tf.reduce_mean(tf.cast(tf.equal(tf.argmax(self.Y, 1), tf.argmax(self.Result, 1)), 'float'))
+            self.Acc = tf.reduce_mean(tf.cast(tf.equal(tf.argmax(self.Y, 1), tf.argmax(tf.nn.softmax(self.Result), 1)), 'float'))
+
         # 用来显示标量信息
         # tf.summary.scalar("loss", self.Loss)
         # tf.summary.scalar("accuracy", self.Acc)
@@ -68,6 +83,12 @@ class LR:
             print("LR model the number {0} test score is {1}".format(
                 test_data['times']+1,acc))
 
+            # 获得混淆矩阵
+            Confusion_matrix = self.sess.run(tf.confusion_matrix(tf.argmax(self.Y, 1), tf.argmax(tf.nn.softmax(self.Result), 1), num_classes=PreDefine.Class_num[self.table_name]),feed_dict={self.X:test_x,self.Y:test_y})
+
+            # 计算Kappa
+            kappa = Kappa(np.array(Confusion_matrix))
+
             # 记录每个模型评估准确率
             new_score = acc
 
@@ -77,7 +98,7 @@ class LR:
                 Saver = tf.train.Saver()
                 Saver.save(self.sess,PreDefine.Model_path2["LR"][self.table_name]+'/LR',global_step=step)
 
-        return low_score,new_score
+        return low_score,new_score,kappa
 
         # 评估主控函数
     def LR_test(self,data):
@@ -108,14 +129,14 @@ class LR:
         for temp in range(PreDefine.Test_K_num[self.table_name]):
             Test_data["times"] = times
             # new_score为每个模型的分数
-            low_score,new_score = self.test_ACC(Test_data,low_score)
+            low_score,new_score,kappa = self.test_ACC(Test_data,low_score)
             times+=1
             acc_score+=new_score
 
             times_list.append(str(times))
             new_score_list.append(new_score*100)
             average_score_list.append(acc_score/PreDefine.Test_K_num[self.table_name])
-            yield times_list,new_score_list,average_score_list
+            yield times_list,new_score_list,average_score_list,kappa
 
     def LR_prediction(self,score_data):
         # 记录预测结果
@@ -129,7 +150,7 @@ class LR:
             Saver = tf.train.Saver()
             # 恢复模型
             Saver.restore(self.sess, tf.train.latest_checkpoint(PreDefine.Model_path2["LR"][self.table_name]))
-            x_data, y_data = data_process.data_process(score_data,self.table_name)
+            x_data, y_data = data_process.predict_data_process(score_data,self.table_name)
 
             data_len = len(x_data)
 
@@ -138,8 +159,8 @@ class LR:
                     self.X: [x_data[i]],
                     self.Y: [y_data[i]]
                 }
-                print(self.sess.run(self.Result, feed_dict=feed))
-                result.append(np.argmax(self.sess.run(self.Result, feed_dict=feed)))
+                print(self.sess.run(tf.nn.softmax(self.Result), feed_dict=feed))
+                result.append(np.argmax(self.sess.run(tf.nn.softmax(self.Result), feed_dict=feed)))
                 truly.append(np.argmax(y_data[i]))
 
         return [result,truly]
@@ -228,7 +249,7 @@ class SVM:
 
             # 径向基函数（RBF）,将线性不可分问题转化到高纬度的线性可分
             # 公式为k = exp{- ||x-xc||^2/(2*σ^2) }
-            # 缩放比例,通常取值0.01、0.1、1、10、100，相当于公式的 -1/2*σ^2
+            # 缩放比例,通常取值-0.01、-0.1、-1、-10、-100，相当于公式的 -1/2*σ^2
             self.Gamma = tf.constant(PreDefine.RBF["Gamma"][self.table_name])
             self.Dist = tf.reshape(tf.reduce_sum(tf.square(self.X),1),[-1,1])
             self.Norm = tf.add(
@@ -273,6 +294,7 @@ class SVM:
                 )
             )
 
+            # 分类决策函数
             self.Predict_output = tf.matmul(tf.multiply(self.Y, self.B), self.Predict_kernal)
             # 平均值，tf.expand_dims增加一维
             self.Predict_result = tf.argmax(self.Predict_output - tf.expand_dims(tf.reduce_mean(self.Predict_output, 1), 1), 0)
@@ -352,6 +374,13 @@ class SVM:
             print("SVM model the number {0} test score is {1}".format(
                 test_data['times'] + 1, acc))
 
+            # 获得混淆矩阵
+            Confusion_matrix = self.sess.run(tf.confusion_matrix(result_list, tf.argmax(test_y, 1),
+                                                                 num_classes=PreDefine.Class_num[self.table_name]))
+
+            # 计算Kappa
+            kappa = Kappa(np.array(Confusion_matrix))
+
             # 记录每个模型评估准确率
             new_score = acc
 
@@ -367,7 +396,7 @@ class SVM:
                 Saver = tf.train.Saver()
                 Saver.save(self.sess, PreDefine.Model_path2["SVM"][self.table_name] + '/SVM', global_step=step)
 
-        return low_score, new_score
+        return low_score, new_score,kappa
 
         # 评估主控函数
 
@@ -399,7 +428,7 @@ class SVM:
         for temp in range(PreDefine.Test_K_num[self.table_name]):
             Test_data["times"] = times
             # new_score为每个模型的分数
-            low_score, new_score = self.test_ACC(Test_data, low_score)
+            low_score, new_score,kappa = self.test_ACC(Test_data, low_score)
 
             times += 1
             acc_score += new_score
@@ -407,7 +436,7 @@ class SVM:
             times_list.append(str(times))
             new_score_list.append(new_score*100)
             average_score_list.append(acc_score / PreDefine.Test_K_num[self.table_name])
-            yield times_list, new_score_list, average_score_list
+            yield times_list, new_score_list, average_score_list,kappa
 
     def SVM_prediction(self,score_data):
 
@@ -421,7 +450,7 @@ class SVM:
             Saver = tf.train.Saver()
             # 恢复模型
             Saver.restore(self.sess, tf.train.latest_checkpoint(PreDefine.Model_path2["SVM"][self.table_name]))
-            x_data, y_data = data_process.data_process(score_data,self.table_name)
+            x_data, y_data = data_process.predict_data_process(score_data,self.table_name)
 
             # 读取向量
             with open(PreDefine.Model_path2["SVM"][self.table_name] + '/vector_data', "rb") as f:
@@ -544,36 +573,43 @@ class DNN:
             self.X = tf.placeholder(dtype=tf.float32, shape=PreDefine.X_shape["DNN"][self.table_name])
             self.Y = tf.placeholder(dtype=tf.float32, shape=PreDefine.Y_shape["DNN"][self.table_name])
 
+            self.dropout_prob = tf.placeholder(dtype=tf.float32)
+
             self.W1 = tf.Variable(tf.truncated_normal(shape=PreDefine.W_shape["DNN1"][self.table_name], stddev=PreDefine.Normal_variable[self.table_name]))
             self.B1 = tf.Variable(tf.constant(value=PreDefine.B_varibale[self.table_name], shape=PreDefine.B_shape["DNN1"][self.table_name]))
 
             self.Layer1 = tf.nn.relu(tf.matmul(self.X, self.W1) + self.B1)
+            self.Layer1_d = tf.nn.dropout(self.Layer1,self.dropout_prob)
 
             self.W2 = tf.Variable(tf.truncated_normal(shape=PreDefine.W_shape["DNN2"][self.table_name], stddev=PreDefine.Normal_variable[self.table_name]))
             self.B2 = tf.Variable(tf.constant(value=PreDefine.B_varibale[self.table_name], shape=PreDefine.B_shape["DNN2"][self.table_name]))
 
-            self.Layer2 = tf.nn.relu(tf.matmul(self.Layer1, self.W2) + self.B2)
+            self.Layer2 = tf.nn.relu(tf.matmul(self.Layer1_d, self.W2) + self.B2)
+            self.Layer2_d = tf.nn.dropout(self.Layer2, self.dropout_prob)
 
             self.W3 = tf.Variable(tf.truncated_normal(shape=PreDefine.W_shape["DNN3"][self.table_name], stddev=PreDefine.Normal_variable[self.table_name]))
             self.B3 = tf.Variable(tf.constant(value=PreDefine.B_varibale[self.table_name], shape=PreDefine.B_shape["DNN3"][self.table_name]))
 
-            self.Layer3 = tf.nn.relu(tf.matmul(self.Layer2, self.W3) + self.B3)
+            self.Layer3 = tf.nn.relu(tf.matmul(self.Layer2_d, self.W3) + self.B3)
+            self.Layer3_d = tf.nn.dropout(self.Layer3, self.dropout_prob)
 
             self.W4 = tf.Variable(tf.truncated_normal(shape=PreDefine.W_shape["DNN4"][self.table_name], stddev=PreDefine.Normal_variable[self.table_name]))
             self.B4 = tf.Variable(tf.constant(value=PreDefine.B_varibale[self.table_name], shape=PreDefine.B_shape["DNN4"][self.table_name]))
 
-            self.Layer4 = tf.nn.relu(tf.matmul(self.Layer3, self.W4) + self.B4)
+            self.Layer4 = tf.nn.relu(tf.matmul(self.Layer3_d, self.W4) + self.B4)
+            self.Layer4_d = tf.nn.dropout(self.Layer4, self.dropout_prob)
 
             self.W5 = tf.Variable(tf.truncated_normal(shape=PreDefine.W_shape["DNN5"][self.table_name], stddev=PreDefine.Normal_variable[self.table_name]))
             self.B5 = tf.Variable(tf.constant(value=PreDefine.B_varibale[self.table_name], shape=PreDefine.B_shape["DNN5"][self.table_name]))
 
-            self.Layer5 = tf.nn.relu(tf.matmul(self.Layer4, self.W5) + self.B5)
+            self.Layer5 = tf.nn.relu(tf.matmul(self.Layer4_d, self.W5) + self.B5)
+            self.Layer5_d = tf.nn.dropout(self.Layer5, self.dropout_prob)
 
             self.W6 = tf.Variable(
                 tf.truncated_normal(shape=PreDefine.W_shape["DNN6"][self.table_name], stddev=PreDefine.Normal_variable[self.table_name]))
             self.B6 = tf.Variable(tf.constant(value=PreDefine.B_varibale[self.table_name], shape=PreDefine.B_shape["DNN6"][self.table_name]))
 
-            self.Layer6 = tf.matmul(self.Layer5, self.W6) + self.B6
+            self.Layer6 = tf.layers.batch_normalization(tf.matmul(self.Layer5_d, self.W6) + self.B6, center=True, scale=True, epsilon=0.001)
 
             # 交叉熵损失函数
             self.Loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(labels=self.Y, logits=self.Layer6))
@@ -582,7 +618,7 @@ class DNN:
             self.Train_op = tf.train.AdamOptimizer(PreDefine.Learning_rate["DNN"][self.table_name]).minimize(self.Loss)
 
             # 准确率
-            self.Acc = tf.reduce_mean(tf.cast(tf.equal(tf.argmax(self.Y, 1), tf.argmax(self.Layer6, 1)), 'float'))
+            self.Acc = tf.reduce_mean(tf.cast(tf.equal(tf.argmax(self.Y, 1), tf.argmax(tf.nn.softmax(self.Layer6), 1)), 'float'))
 
     # 评估统计
     def test_ACC(self, test_data, low_score):
@@ -606,7 +642,8 @@ class DNN:
                 for data_x, data_y in batches:
                     feed = {
                         self.X: data_x,
-                        self.Y: data_y
+                        self.Y: data_y,
+                        self.dropout_prob:PreDefine.Dropout_prob[self.table_name]["train"]
                     }
 
                     _, loss = self.sess.run([self.Train_op, self.Loss], feed_dict=feed)
@@ -617,9 +654,17 @@ class DNN:
                     acc = self.Acc.eval(feed_dict=feed)
                     print("step %d , Loss is %f , Acc is %f" % (step, loss, acc))
 
-            acc = self.Acc.eval(feed_dict={self.X: test_x, self.Y: test_y})
+            acc = self.Acc.eval(feed_dict={self.X: test_x, self.Y: test_y,self.dropout_prob:PreDefine.Dropout_prob[self.table_name]["test"]})
             print("DNN model the number {0} test score is {1}".format(
                 test_data['times'] + 1, acc))
+
+            # 获得混淆矩阵
+            Confusion_matrix = self.sess.run(tf.confusion_matrix(tf.argmax(self.Y, 1), tf.argmax(tf.nn.softmax(self.Layer6), 1),
+                                                                 num_classes=PreDefine.Class_num[self.table_name]),
+                                             feed_dict={self.X: test_x, self.Y: test_y,self.dropout_prob:PreDefine.Dropout_prob[self.table_name]["test"]})
+
+            # 计算Kappa
+            kappa = Kappa(np.array(Confusion_matrix))
 
             # 记录每个模型评估准确率
             new_score = acc
@@ -630,7 +675,7 @@ class DNN:
                 Saver = tf.train.Saver()
                 Saver.save(self.sess, PreDefine.Model_path2["DNN"][self.table_name] + '/DNN', global_step=step)
 
-        return low_score, new_score
+        return low_score, new_score,kappa
 
         # 评估主控函数
 
@@ -662,14 +707,14 @@ class DNN:
         for temp in range(PreDefine.Test_K_num[self.table_name]):
             Test_data["times"] = times
             # new_score为每个模型的分数
-            low_score, new_score = self.test_ACC(Test_data, low_score)
+            low_score, new_score,kappa = self.test_ACC(Test_data, low_score)
             times += 1
             acc_score += new_score
 
             times_list.append(str(times))
             new_score_list.append(new_score*100)
             average_score_list.append(acc_score / PreDefine.Test_K_num[self.table_name])
-            yield times_list, new_score_list, average_score_list
+            yield times_list, new_score_list, average_score_list,kappa
 
     def DNN_prediction(self,score_data):
 
@@ -684,18 +729,19 @@ class DNN:
             Saver = tf.train.Saver()
             # 恢复模型
             Saver.restore(self.sess, tf.train.latest_checkpoint(PreDefine.Model_path2["DNN"][self.table_name]))
-            x_data, y_data = data_process.data_process(score_data,self.table_name)
+            x_data, y_data = data_process.predict_data_process(score_data,self.table_name)
 
             data_len = len(x_data)
 
             for i in range(data_len):
                 feed = {
                     self.X: [x_data[i]],
-                    self.Y: [y_data[i]]
+                    self.Y: [y_data[i]],
+                    self.dropout_prob: PreDefine.Dropout_prob[self.table_name]["test"]
                 }
 
-                print(self.sess.run(self.Layer6, feed_dict=feed))
-                result.append(np.argmax(self.sess.run(self.Layer6, feed_dict=feed)))
+                print(self.sess.run(tf.nn.softmax(self.Layer6), feed_dict=feed))
+                result.append(np.argmax(self.sess.run(tf.nn.softmax(self.Layer6), feed_dict=feed)))
                 truly.append(np.argmax(y_data[i]))
 
         return [result, truly]
@@ -732,7 +778,8 @@ class DNN:
                 for data_x, data_y in batches:
                     feed = {
                         self.X: data_x,
-                        self.Y: data_y
+                        self.Y: data_y,
+                        self.dropout_prob: PreDefine.Dropout_prob[self.table_name]["train"]
                     }
 
                     _, loss = self.sess.run([self.Train_op, self.Loss], feed_dict=feed)
@@ -751,7 +798,7 @@ class DNN:
 
                     yield step_list, loss_list, acc_list
 
-            print("DNN model train acc is " + str(self.Acc.eval(feed_dict={self.X: Batch.Data_X, self.Y: Batch.Data_Y})))
+            print("DNN model train acc is " + str(self.Acc.eval(feed_dict={self.X: Batch.Data_X, self.Y: Batch.Data_Y,self.dropout_prob: PreDefine.Dropout_prob[self.table_name]["test"]})))
             Saver.save(self.sess, PreDefine.Model_path2["DNN"][self.table_name] + '/DNN', global_step=step)
 
 

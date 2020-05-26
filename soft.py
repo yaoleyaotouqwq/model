@@ -1,18 +1,35 @@
-import Data
-
-xapi_dict = Data.Data_value_change["xapi"]
-
-data = ["M","KW","KuwaIT","lowerlevel","G-04","A","IT","F","Father","15","16","2","20","Yes","Good","Under-7","M"]
-for temp1,temp2 in enumerate(xapi_dict):
-    if temp1 <= 8:
-        print(temp1, xapi_dict[temp2][data[temp1]])
-        if temp1 == 8:
-            print(data[temp1 + 1:temp1 + 1 + 4])
-    else:
-        print(temp1, xapi_dict[temp2][data[temp1+4]])
 
 
+import tensorflow as tf
 
+# self.Gamma = tf.constant(PreDefine.RBF["Gamma"][self.table_name])
+# self.Dist = tf.reshape(tf.reduce_sum(tf.square(self.X),1),[-1,1])
+# self.Norm = tf.add(
+#     tf.subtract(
+#         self.Dist,
+#         tf.multiply(2.,tf.matmul(self.X,tf.transpose(self.X)))
+#     ),
+#     tf.transpose(self.Dist)
+# )
+# self.Kernel = tf.exp(tf.multiply(self.Gamma,tf.abs(self.Norm)))
 
-    # for temp2 in xapi_dict[temp1]:
-    #     print(temp2)
+x = [[1,2,3],[4,5,6]]
+
+X = tf.placeholder(tf.float32,[None,3])
+gama = tf.constant(-10.0)
+
+dist = tf.reshape(tf.reduce_sum(tf.square(X),1),[-1,1])
+
+Norm = tf.add(
+    tf.subtract(
+        dist,
+        tf.multiply(2.,tf.matmul(X,tf.transpose(X)))
+    ),
+    tf.transpose(dist)
+)
+
+with tf.Session() as sess:
+    sess.run(tf.global_variables_initializer())
+    print(sess.run(dist,feed_dict={X:x}))
+    print(sess.run(tf.transpose(dist),feed_dict={X:x}))
+    print(sess.run(Norm,feed_dict={X:x}))
